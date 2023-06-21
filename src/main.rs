@@ -1,8 +1,37 @@
 use md5::{self, Digest};
 use std::collections::HashMap;
 use std::fs;
-use std::io;
+use std::io::{self, Read};
 use std::path::{Path, PathBuf};
+
+
+/*
+
+In the following 2 functions, the argument is defined using generics
+as AsRef<Path>. This basically means that the argument can be of any
+type that implements the trait AsRef<Path>.
+
+The most common usecase is to accept Path, PathBuf or sometimes even
+strings. When working with Path types, the methods we usually
+encounter return either &Path (reference to the data) or PathBuf (copy
+that actually holds the data). So it helps if any functions that we
+implement also support the same generics.
+
+
+*/
+
+fn file_contents_as_bytes<P: AsRef<Path>>(path: P) -> io::Result<Vec<u8>> {
+    let mut f = fs::File::open(path)?;
+    let mut buf: Vec<u8> = Vec::new();
+    f.read_to_end(&mut buf)?;
+    Ok(buf)
+}
+
+fn file_contents_as_md5<P: AsRef<Path>> (path: P) -> io::Result<Digest> {
+    let data = file_contents_as_bytes(path)?;
+    Ok(md5::compute(data))
+}
+
 
 /*
 
@@ -31,7 +60,7 @@ fn scan(dirpath: &Path) -> io::Result<HashMap<Digest, Vec<Box<PathBuf>>>> {
     if path.is_dir() {
         for entry in fs::read_dir(path)? {
             let entry = entry?;
-            let hash = md5::compute(entry.path().display().to_string().as_bytes());
+            let hash = file_contents_as_md5(entry.path())?;
             let boxed_path = Box::new(entry.path());
             match res.get_mut(&hash) {
                 None => {
