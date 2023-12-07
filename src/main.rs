@@ -68,7 +68,7 @@ fn find_duplicates(paths: &Vec<PathBuf>) -> io::Result<HashMap<Digest, Vec<&Path
         // want to consider those symlinks that are under the root
         // directory
         if !path.is_symlink() {
-            println!("Reading file: {}", path.display());
+            eprintln!("Reading file: {}", path.display());
             let hash = file_contents_as_md5(&path)?;
             match res.get_mut(&hash) {
                 None => {
@@ -79,16 +79,26 @@ fn find_duplicates(paths: &Vec<PathBuf>) -> io::Result<HashMap<Digest, Vec<&Path
                 }
             };
         } else {
-            println!("Skipping symlink: {}", path.display());
+            eprintln!("Skipping symlink: {}", path.display());
         }
     }
     res.retain(|_, v| v.len() > 1);
     Ok(res)
 }
 
+fn render_output(dups: &HashMap<Digest, Vec<&PathBuf>>) {
+    for (k, vs) in dups.iter() {
+        println!("# {:x}", k);
+        for v in vs {
+            println!("F {}", v.display());
+        }
+        println!("");
+    }
+}
+
 fn main() {
     let dir = Path::new("/Users/vineet/Dropbox");
     let paths = traverse_bfs(&dir).unwrap();
     let dups = find_duplicates(&paths).unwrap();
-    println!("Duplicates: {:?}", dups);
+    render_output(&dups);
 }
