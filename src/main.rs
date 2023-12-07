@@ -82,6 +82,7 @@ fn find_duplicates(paths: &Vec<PathBuf>) -> io::Result<HashMap<Digest, Vec<&Path
             println!("Skipping symlink: {}", path.display());
         }
     }
+    res.retain(|_, v| v.len() > 1);
     Ok(res)
 }
 
