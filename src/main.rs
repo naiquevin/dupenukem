@@ -46,7 +46,6 @@ encounter return either &Path (reference to the data) or PathBuf (copy
 that actually holds the data). So it helps if any functions that we
 implement also support the same generics.
 
-
 */
 
 fn file_contents_as_bytes<P: AsRef<Path>>(path: P) -> io::Result<Vec<u8>> {
@@ -56,46 +55,39 @@ fn file_contents_as_bytes<P: AsRef<Path>>(path: P) -> io::Result<Vec<u8>> {
     Ok(buf)
 }
 
-fn file_contents_as_md5<P: AsRef<Path>> (path: P) -> io::Result<Digest> {
+fn file_contents_as_md5<P: AsRef<Path>> (path: &P) -> io::Result<Digest> {
     let data = file_contents_as_bytes(path)?;
     Ok(md5::compute(data))
 }
 
 
-fn scan(dirpath: &Path) -> io::Result<HashMap<Digest, Vec<Box<PathBuf>>>> {
-    let mut res: HashMap<Digest, Vec<Box<PathBuf>>> = HashMap::new();
-    if dirpath.is_dir() {
-        for entry in fs::read_dir(dirpath)? {
-            let entry = entry?;
-            let hash = file_contents_as_md5(entry.path())?;
-            let boxed_path = Box::new(entry.path());
+fn find_duplicates(paths: &Vec<PathBuf>) -> io::Result<HashMap<Digest, Vec<&PathBuf>>> {
+    let mut res: HashMap<Digest, Vec<&PathBuf>> = HashMap::new();
+    for path in paths {
+        // @TODO: For now, all symlinks are being ignored. Actually we
+        // want to consider those symlinks that are under the root
+        // directory
+        if !path.is_symlink() {
+            println!("Reading file: {}", path.display());
+            let hash = file_contents_as_md5(&path)?;
             match res.get_mut(&hash) {
                 None => {
-                    res.insert(hash, vec![boxed_path]);
+                    res.insert(hash, vec![path]);
                 }
                 Some(v) => {
-                    v.push(boxed_path);
+                    v.push(path);
                 }
             };
+        } else {
+            println!("Skipping symlink: {}", path.display());
         }
     }
     Ok(res)
 }
 
 fn main() {
-    // println!("Hello, world!");
     let dir = Path::new("/Users/vineet/Dropbox");
-    // match scan(&dir) {
-    //     Ok(r) => println!("{:?}", r),
-    //     Err(e) => println!("An error occurred {:?}", e),
-    // };
-
-    match traverse_bfs(&dir) {
-        Ok(r) => {
-            for p in r {
-                println!("{:?}", p);
-            }
-        }
-        Err(e) => println!("An error occurred {:?}", e),
-    };
+    let paths = traverse_bfs(&dir).unwrap();
+    let dups = find_duplicates(&paths).unwrap();
+    println!("Duplicates: {:?}", dups);
 }
