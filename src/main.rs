@@ -1,8 +1,37 @@
 use md5::{self, Digest};
 use std::collections::HashMap;
+use std::collections::VecDeque;
 use std::fs;
 use std::io::{self, Read};
 use std::path::{Path, PathBuf};
+
+
+/// Function to traverse a directory recursively using the
+/// breadth-first approach and return a vector of paths to all the
+/// files.
+fn traverse_bfs(dirpath: &Path) -> io::Result<Vec<PathBuf>> {
+    let mut queue: VecDeque<PathBuf> = VecDeque::new();
+    let mut result: Vec<PathBuf> = Vec::new();
+    queue.push_back(dirpath.to_path_buf());
+    loop {
+        match queue.pop_front() {
+            Some(p) => {
+                for entry in fs::read_dir(p)? {
+                    let ep = entry?.path();
+                    if ep.is_dir() {
+                        queue.push_back(ep);
+                    } else {
+                        result.push(ep);
+                    }
+                }
+            }
+            None => {
+                break;
+            }
+        }
+    }
+    Ok(result)
+}
 
 
 /*
@@ -33,32 +62,10 @@ fn file_contents_as_md5<P: AsRef<Path>> (path: P) -> io::Result<Digest> {
 }
 
 
-/*
-
-Some important points to note about the following function:
-
-In this function we want to take a directory path, scan the contents
-of it recursively and return a hashmap which will be all the paths
-grouped by the md5 hash of the contents of the file.
-
-1. Why does it return a Result instead of a HashMap? - This is because
-the fs::read_dir function returns a Result<T> and we're using the `?`
-operator which means if an error is returned by fs::read_dir, then
-this function will also return that error
-
-2. In the hashmap inside the result, the values are vectors of
-`std::path::PathBuf` wrapped inside a Box. This is because we can't
-directly use the Path object in it because Path is an unsized type
-which means it can't be directly put on the stack. It has to be
-allocated on the heap using Box.
-
-
-*/
 fn scan(dirpath: &Path) -> io::Result<HashMap<Digest, Vec<Box<PathBuf>>>> {
     let mut res: HashMap<Digest, Vec<Box<PathBuf>>> = HashMap::new();
-    let path = Path::new(dirpath);
-    if path.is_dir() {
-        for entry in fs::read_dir(path)? {
+    if dirpath.is_dir() {
+        for entry in fs::read_dir(dirpath)? {
             let entry = entry?;
             let hash = file_contents_as_md5(entry.path())?;
             let boxed_path = Box::new(entry.path());
@@ -77,9 +84,18 @@ fn scan(dirpath: &Path) -> io::Result<HashMap<Digest, Vec<Box<PathBuf>>>> {
 
 fn main() {
     // println!("Hello, world!");
-    let dir = Path::new("/Users/vineet/Downloads");
-    match scan(&dir) {
-        Ok(r) => println!("{:?}", r),
+    let dir = Path::new("/Users/vineet/Dropbox");
+    // match scan(&dir) {
+    //     Ok(r) => println!("{:?}", r),
+    //     Err(e) => println!("An error occurred {:?}", e),
+    // };
+
+    match traverse_bfs(&dir) {
+        Ok(r) => {
+            for p in r {
+                println!("{:?}", p);
+            }
+        }
         Err(e) => println!("An error occurred {:?}", e),
     };
 }
