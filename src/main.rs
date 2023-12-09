@@ -88,7 +88,7 @@ fn find_duplicates(paths: &Vec<PathBuf>) -> io::Result<HashMap<Digest, Vec<&Path
 
 fn render_output(dups: &HashMap<Digest, Vec<&PathBuf>>) {
     for (k, vs) in dups.iter() {
-        println!("# {:x}", k);
+        println!("[{:x}]", k);
         for v in vs {
             println!("F {}", v.display());
         }
