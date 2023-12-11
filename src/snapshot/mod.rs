@@ -2,6 +2,7 @@ use crate::fileutil::{traverse_bfs, find_duplicates};
 use chrono::{DateTime, Local};
 use md5::Digest;
 use std::fmt;
+use std::io;
 use std::path::{PathBuf, Path};
 use std::collections::HashMap;
 
@@ -56,18 +57,19 @@ pub struct Snapshot {
 
 impl Snapshot {
 
-    pub fn of_rootdir(rootdir: &Path) -> Snapshot {
-        let paths = traverse_bfs(&rootdir).unwrap();
+    pub fn of_rootdir(rootdir: &Path) -> io::Result<Snapshot> {
+        let paths = traverse_bfs(&rootdir)?;
         let mut duplicates: HashMap<Digest, Vec<FilePath>> = HashMap::new();
-        for (digest, paths) in find_duplicates(&paths).unwrap().iter() {
+        for (digest, paths) in find_duplicates(&paths)?.iter() {
             let filepaths = paths.iter().map(|p| { FilePath::new(*p) }).collect();
             duplicates.insert(*digest, filepaths);
         }
-        Snapshot {
+        let snap = Snapshot {
             rootdir: rootdir.to_path_buf(),
             generated_at: Local::now(),
             duplicates
-        }
+        };
+        Ok(snap)
     }
 
     pub fn render_text(&self) {
