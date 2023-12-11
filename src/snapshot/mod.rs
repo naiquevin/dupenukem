@@ -4,6 +4,8 @@ use std::fmt;
 use std::path::{PathBuf, Path};
 use std::collections::HashMap;
 
+mod textformat;
+
 #[allow(dead_code)]
 enum FileOp {
     Keep,
@@ -66,12 +68,8 @@ impl Snapshot {
     }
 
     pub fn render_text(&self) {
-        for (k, vs) in self.duplicates.iter() {
-            println!("[{:x}]", k);
-            for v in vs {
-                println!("{} {}", v.op, v.path.display());
-            }
-            println!("");
+        for line in textformat::render(&self).iter() {
+            println!("{}", line);
         }
     }
 }
