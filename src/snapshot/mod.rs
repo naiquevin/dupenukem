@@ -6,7 +6,7 @@ use std::io;
 use std::path::{PathBuf, Path};
 use std::collections::HashMap;
 
-mod textformat;
+pub mod textformat;
 
 #[allow(dead_code)]
 enum FileOp {
@@ -70,11 +70,5 @@ impl Snapshot {
             duplicates
         };
         Ok(snap)
-    }
-
-    pub fn render_text(&self) {
-        for line in textformat::render(&self).iter() {
-            println!("{}", line);
-        }
     }
 }
