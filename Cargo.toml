@@ -8,3 +8,4 @@ edition = "2021"
 [dependencies]
 chrono = "0.4.31"
 md5 = "0.7.0"
+regex = "1.10.2"
