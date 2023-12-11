@@ -1,4 +1,5 @@
 use crate::fileutil::{traverse_bfs, find_duplicates};
+use chrono::{DateTime, Local};
 use md5::Digest;
 use std::fmt;
 use std::path::{PathBuf, Path};
@@ -49,6 +50,7 @@ impl FilePath {
 #[allow(dead_code)]
 pub struct Snapshot {
     rootdir: PathBuf,
+    generated_at: DateTime<Local>,
     duplicates: HashMap<Digest, Vec<FilePath>>
 }
 
@@ -63,6 +65,7 @@ impl Snapshot {
         }
         Snapshot {
             rootdir: rootdir.to_path_buf(),
+            generated_at: Local::now(),
             duplicates
         }
     }

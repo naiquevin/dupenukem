@@ -33,6 +33,22 @@ fn render_lines(snap: &Snapshot) -> Vec<Line> {
     // @TODO: Can we calculate the no. of lines roughly and initialize
     // a vector with that capacity?
     let mut lines: Vec<Line> = Vec::new();
+
+    // Add root dir as metadata
+    lines.push(Line::MetaData {
+        key: "Root Directory".to_string(),
+        val: snap.rootdir.display().to_string()
+    });
+
+    // Add time of generation as metadata
+    lines.push(Line::MetaData {
+        key: "Generated at".to_string(),
+        val: snap.generated_at.to_string(),
+    });
+
+    // Add a blank line before dumping the filepath groupings
+    lines.push(Line::Blank);
+
     for (k, vs) in snap.duplicates.iter() {
         lines.push(Line::Checksum(format!("{:x}", k)));
         for v in vs {
