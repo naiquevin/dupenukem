@@ -195,6 +195,38 @@ mod tests {
         }, x);
     }
 
+    #[test]
+    fn test_line_decode_checksum() {
+        let x = Line::decode(&"[fd2dd43f6cd0565ed876ca1ac2dfc708]".to_owned());
+        match x {
+            Line::Checksum(d) => {
+                assert_eq!("fd2dd43f6cd0565ed876ca1ac2dfc708".to_owned(), d);
+            },
+            _ => assert!(false)
+        }
+    }
+
+    #[test]
+    fn test_line_decode_pathinfo() {
+        let x = Line::decode(&"keep /foo/bar/1.txt".to_owned());
+        assert_eq!(Line::PathInfo {
+            path: "/foo/bar/1.txt".to_owned(),
+            op: "keep".to_owned(),
+        }, x);
+
+        let y = Line::decode(&"symlink /foo/bar/1.txt".to_owned());
+        assert_eq!(Line::PathInfo {
+            path: "/foo/bar/1.txt".to_owned(),
+            op: "symlink".to_owned(),
+        }, y);
+
+        let z = Line::decode(&"delete /foo/bar/1.txt".to_owned());
+        assert_eq!(Line::PathInfo {
+            path: "/foo/bar/1.txt".to_owned(),
+            op: "delete".to_owned(),
+        }, z);
+    }
+
     // Tests for `parse` method
 
     #[test]
