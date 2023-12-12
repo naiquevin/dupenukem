@@ -1,5 +1,9 @@
-use super::Snapshot;
+use super::{Snapshot, FilePath, FileOp};
+use chrono::{DateTime, Local};
+use md5::Digest;
 use regex::Regex;
+use std::collections::HashMap;
+use std::path::PathBuf;
 
 #[allow(dead_code)]
 #[derive(Debug, Eq, PartialEq)]
@@ -74,7 +78,7 @@ fn render_lines(snap: &Snapshot) -> Vec<Line> {
     // Add time of generation as metadata
     lines.push(Line::MetaData {
         key: "Generated at".to_string(),
-        val: snap.generated_at.to_string(),
+        val: snap.generated_at.to_rfc2822(),
     });
 
     // Add a blank line before dumping the filepath groupings
@@ -102,10 +106,58 @@ pub fn render(snap: &Snapshot) -> Vec<String> {
     result
 }
 
+#[allow(dead_code)]
+pub fn parse(str_lines: Vec<String>) -> Snapshot {
+    let lines = str_lines.iter().map(Line::decode);
+    let mut rootdir: Option<PathBuf> = None;
+    let mut _generated_at: Option<DateTime<Local>> = None;
+    let mut curr_group: Option<Digest> = None;
+    let mut duplicates: HashMap<Digest, Vec<FilePath>> = HashMap::new();
+    for line in lines {
+        match &line {
+            Line::Comment(_) => continue,
+            Line::Blank => continue,
+            Line::MetaData { key, val } => {
+                if key == "Root Directory" {
+                    rootdir = Some(PathBuf::from(val));
+                } else if key == "Generated at" {
+                    // @TODO: Implement this. It's kept for later as
+                    // it's not very critical to parsing
+                }
+            },
+            Line::Checksum(hash) => {
+                let mut bytea = [0u8; 16];
+                hex::decode_to_slice(hash.as_str(), &mut bytea).unwrap();
+                curr_group = Some(Digest(bytea));
+            },
+            Line::PathInfo { path, op } => {
+                let group = curr_group.unwrap();
+                let filepath = FilePath {
+                    path: PathBuf::from(path),
+                    op: FileOp::decode(op.as_str()).unwrap(),
+                };
+                if let Some(fps) = duplicates.get_mut(&group) {
+                    fps.push(filepath);
+                } else {
+                    duplicates.insert(group, vec![filepath]);
+                }
+            },
+        }
+    }
+    Snapshot {
+        rootdir: rootdir.unwrap(),
+        // @TODO: Needs to be implemented
+        generated_at: Local::now(),
+        duplicates,
+    }
+}
+
 #[cfg(test)]
 mod tests {
 
     use super::*;
+
+    // Tests for Line enum methods
 
     #[test]
     fn test_line_decode_blank() {
@@ -143,5 +195,26 @@ mod tests {
             key: "Root Directory".to_owned(),
             val: "/path/to/rootdir".to_owned(),
         }, x);
+    }
+
+    // Tests for `parse` method
+
+    #[test]
+    fn test_parse() {
+        let input = vec![
+            "#! Root Directory: /foo",
+            "",
+            "[fd2dd43f6cd0565ed876ca1ac2dfc708]",
+            "symlink /foo/bar/1.txt",
+            "keep /foo/1.txt",
+            "delete /foo/bar/1_copy.txt",
+            "",
+            "[b2c7374428473edcfd949a6fd3bbe7d1]",
+            "keep /foo/2.txt",
+            "symlink /foo/bar/2.txt",
+        ];
+        let lines = input.iter().map(|s| String::from(*s)).collect();
+        let snap: Snapshot = parse(lines);
+        assert_eq!(PathBuf::from("/foo"), snap.rootdir);
     }
 }

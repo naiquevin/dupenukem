@@ -15,6 +15,20 @@ enum FileOp {
     Delete,
 }
 
+#[allow(dead_code)]
+impl FileOp {
+
+    fn decode(s: &str) -> Option<Self> {
+        match s {
+            "keep" => Some(Self::Keep),
+            "symlink" => Some(Self::Symlink),
+            "delete" => Some(Self::Delete),
+            // @TODO: Throw an error here
+            _ => None,
+        }
+    }
+}
+
 impl fmt::Display for FileOp {
 
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
