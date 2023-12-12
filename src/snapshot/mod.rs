@@ -8,14 +8,12 @@ use std::collections::HashMap;
 
 pub mod textformat;
 
-#[allow(dead_code)]
 enum FileOp {
     Keep,
     Symlink,
     Delete,
 }
 
-#[allow(dead_code)]
 impl FileOp {
 
     fn decode(s: &str) -> Option<Self> {
@@ -62,7 +60,6 @@ impl FilePath {
     }
 }
 
-#[allow(dead_code)]
 pub struct Snapshot {
     rootdir: PathBuf,
     generated_at: DateTime<FixedOffset>,

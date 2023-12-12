@@ -5,7 +5,6 @@ use regex::Regex;
 use std::collections::HashMap;
 use std::path::PathBuf;
 
-#[allow(dead_code)]
 #[derive(Debug, Eq, PartialEq)]
 enum Line {
     Comment(String),
@@ -15,7 +14,6 @@ enum Line {
     Blank,
 }
 
-#[allow(dead_code)]
 impl Line {
 
     fn encode(&self) -> String {
