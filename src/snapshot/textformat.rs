@@ -1,5 +1,5 @@
 use super::{Snapshot, FilePath, FileOp};
-use chrono::{DateTime, Local};
+use chrono::{DateTime, FixedOffset};
 use md5::Digest;
 use regex::Regex;
 use std::collections::HashMap;
@@ -110,7 +110,7 @@ pub fn render(snap: &Snapshot) -> Vec<String> {
 pub fn parse(str_lines: Vec<String>) -> Snapshot {
     let lines = str_lines.iter().map(Line::decode);
     let mut rootdir: Option<PathBuf> = None;
-    let mut _generated_at: Option<DateTime<Local>> = None;
+    let mut generated_at: Option<DateTime<FixedOffset>> = None;
     let mut curr_group: Option<Digest> = None;
     let mut duplicates: HashMap<Digest, Vec<FilePath>> = HashMap::new();
     for line in lines {
@@ -121,8 +121,7 @@ pub fn parse(str_lines: Vec<String>) -> Snapshot {
                 if key == "Root Directory" {
                     rootdir = Some(PathBuf::from(val));
                 } else if key == "Generated at" {
-                    // @TODO: Implement this. It's kept for later as
-                    // it's not very critical to parsing
+                    generated_at = Some(DateTime::parse_from_rfc2822(val).unwrap());
                 }
             },
             Line::Checksum(hash) => {
@@ -146,8 +145,7 @@ pub fn parse(str_lines: Vec<String>) -> Snapshot {
     }
     Snapshot {
         rootdir: rootdir.unwrap(),
-        // @TODO: Needs to be implemented
-        generated_at: Local::now(),
+        generated_at: generated_at.unwrap(),
         duplicates,
     }
 }
@@ -203,6 +201,7 @@ mod tests {
     fn test_parse() {
         let input = vec![
             "#! Root Directory: /foo",
+            "#! Generated at: Tue, 12 Dec 2023 16:00:44 +0530",
             "",
             "[fd2dd43f6cd0565ed876ca1ac2dfc708]",
             "symlink /foo/bar/1.txt",
