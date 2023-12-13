@@ -68,8 +68,8 @@ impl Snapshot {
     pub fn of_rootdir(rootdir: &Path) -> io::Result<Snapshot> {
         let paths = traverse_bfs(&rootdir)?;
         let mut duplicates: HashMap<Digest, Vec<FilePath>> = HashMap::new();
-        for (digest, paths) in find_duplicates(&paths)?.iter() {
-            let filepaths = paths.iter().map(|p| { FilePath::new(*p) }).collect();
+        for (digest, paths) in find_duplicates(rootdir, &paths)?.iter() {
+            let filepaths = paths.iter().map(|p| FilePath::new(*p)).collect();
             duplicates.insert(*digest, filepaths);
         }
         let snap = Snapshot {

@@ -32,7 +32,6 @@ pub fn traverse_bfs(dirpath: &Path) -> io::Result<Vec<PathBuf>> {
     Ok(result)
 }
 
-
 /*
 
 In the following 2 functions, the argument is defined using generics
@@ -54,21 +53,48 @@ fn file_contents_as_bytes<P: AsRef<Path>>(path: P) -> io::Result<Vec<u8>> {
     Ok(buf)
 }
 
-fn file_contents_as_md5<P: AsRef<Path>> (path: &P) -> io::Result<Digest> {
+fn file_contents_as_md5<P: AsRef<Path>>(path: &P) -> io::Result<Digest> {
     let data = file_contents_as_bytes(path)?;
     Ok(md5::compute(data))
 }
 
+fn within_rootdir(rootdir: &Path, path: &PathBuf) -> bool {
+    path.ancestors().find(|d| *d == rootdir).is_some()
+}
 
-pub fn find_duplicates(paths: &Vec<PathBuf>) -> io::Result<HashMap<Digest, Vec<&PathBuf>>> {
+fn try_md5_hash(rootdir: &Path, path: &PathBuf) -> Option<Digest> {
+    if path.is_symlink() {
+        if within_rootdir(rootdir, path) {
+            match path.canonicalize().ok() {
+                Some(t) => {
+                    eprintln!("Reading file: {} -> {}", path.display(), t.display());
+                    file_contents_as_md5(&t).ok()
+                }
+                None => {
+                    eprintln!("Skipping broken link: {}", path.display());
+                    None
+                }
+            }
+        } else {
+            eprintln!(
+                "Skipping symlink to outside the root dir: {}",
+                path.display()
+            );
+            None
+        }
+    } else {
+        eprintln!("Reading file: {}", path.display());
+        file_contents_as_md5(&path).ok()
+    }
+}
+
+pub fn find_duplicates<'a>(
+    rootdir: &Path,
+    paths: &'a Vec<PathBuf>,
+) -> io::Result<HashMap<Digest, Vec<&'a PathBuf>>> {
     let mut res: HashMap<Digest, Vec<&PathBuf>> = HashMap::new();
     for path in paths {
-        // @TODO: For now, all symlinks are being ignored. Actually we
-        // want to consider those symlinks that are under the root
-        // directory
-        if !path.is_symlink() {
-            eprintln!("Reading file: {}", path.display());
-            let hash = file_contents_as_md5(&path)?;
+        if let Some(hash) = try_md5_hash(rootdir, path) {
             match res.get_mut(&hash) {
                 None => {
                     res.insert(hash, vec![path]);
@@ -77,8 +103,6 @@ pub fn find_duplicates(paths: &Vec<PathBuf>) -> io::Result<HashMap<Digest, Vec<&
                     v.push(path);
                 }
             };
-        } else {
-            eprintln!("Skipping symlink: {}", path.display());
         }
     }
     res.retain(|_, v| v.len() > 1);
