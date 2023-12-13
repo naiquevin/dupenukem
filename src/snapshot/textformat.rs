@@ -231,6 +231,27 @@ mod tests {
             key: "Root Directory".to_owned(),
             val: "/path/to/rootdir".to_owned(),
         }, x.unwrap());
+
+        // Unrecognized metadata
+        let x = Line::decode(&"#! Foo: bar".to_owned());
+        assert!(x.is_ok());
+        assert_eq!(Line::MetaData {
+            key: "Foo".to_owned(),
+            val: "bar".to_owned(),
+        }, x.unwrap());
+
+        // When `#!` prefix is incorrectly used
+        let x = Line::decode(&"#!".to_owned());
+        assert!(x.is_err());
+        assert_eq!(AppError::SnapshotParsing, x.unwrap_err());
+
+        let x = Line::decode(&"#! Just a comment by mistake".to_owned());
+        assert!(x.is_err());
+        assert_eq!(AppError::SnapshotParsing, x.unwrap_err());
+
+        let x = Line::decode(&"#! Empty metadata: ".to_owned());
+        assert!(x.is_err());
+        assert_eq!(AppError::SnapshotParsing, x.unwrap_err());
     }
 
     #[test]
@@ -266,6 +287,11 @@ mod tests {
             path: "/foo/bar/1.txt".to_owned(),
             op: "delete".to_owned(),
         }, z.unwrap());
+
+        // with unknown marker
+        let u = Line::decode(&"create /foo/bar/1.txt".to_owned());
+        assert!(u.is_err());
+        assert_eq!(AppError::SnapshotParsing, u.unwrap_err());
     }
 
     // Tests for `parse` method
