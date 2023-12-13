@@ -1,6 +1,7 @@
 use super::{Snapshot, FilePath, FileOp};
 use crate::error::AppError;
 use chrono::{DateTime, FixedOffset};
+use hex::{FromHexError, self};
 use md5::Digest;
 use regex::Regex;
 use std::collections::HashMap;
@@ -132,6 +133,12 @@ pub fn render(snap: &Snapshot) -> Vec<String> {
     result
 }
 
+fn str_to_digest(s: &str) -> Result<Digest, FromHexError> {
+    let mut bytea = [0u8; 16];
+    hex::decode_to_slice(s, &mut bytea)?;
+    Ok(Digest(bytea))
+}
+
 #[allow(dead_code)]
 pub fn parse(str_lines: Vec<String>) -> Result<Snapshot, AppError> {
     let lines = str_lines.iter().map(Line::decode);
@@ -151,9 +158,7 @@ pub fn parse(str_lines: Vec<String>) -> Result<Snapshot, AppError> {
                 }
             },
             Ok(Line::Checksum(hash)) => {
-                let mut bytea = [0u8; 16];
-                hex::decode_to_slice(hash.as_str(), &mut bytea).unwrap();
-                curr_group = Some(Digest(bytea));
+                curr_group = str_to_digest(hash.as_str()).ok();
             },
             Ok(Line::PathInfo { path, op }) => {
                 let group = curr_group.unwrap();
@@ -314,5 +319,28 @@ mod tests {
         let lines = input.iter().map(|s| String::from(*s)).collect();
         let snap: Snapshot = parse(lines).unwrap();
         assert_eq!(PathBuf::from("/foo"), snap.rootdir);
+
+        let d1 = str_to_digest("fd2dd43f6cd0565ed876ca1ac2dfc708").unwrap();
+        if let Some(fps) = snap.duplicates.get(&d1) {
+            assert_eq!(3, fps.len());
+            // 1st filepath
+            assert_eq!(FileOp::Symlink, fps[0].op);
+            assert_eq!("/foo/bar/1.txt".to_owned(), fps[0].path.display().to_string());
+
+            // 2nd filepath
+            assert_eq!(FileOp::Keep, fps[1].op);
+            assert_eq!("/foo/1.txt".to_owned(), fps[1].path.display().to_string());
+
+            // 3rd filepath
+            assert_eq!(FileOp::Delete, fps[2].op);
+            assert_eq!("/foo/bar/1_copy.txt".to_owned(), fps[2].path.display().to_string());
+        } else {
+            assert!(false);
+        }
+
+        let d2 = str_to_digest("b2c7374428473edcfd949a6fd3bbe7d1").unwrap();
+        if let Some(fps) = snap.duplicates.get(&d2) {
+            assert_eq!(2, fps.len());
+        }
     }
 }

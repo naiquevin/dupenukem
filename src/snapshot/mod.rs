@@ -8,6 +8,7 @@ use std::collections::HashMap;
 
 pub mod textformat;
 
+#[derive(Debug, PartialEq, Eq)]
 enum FileOp {
     Keep,
     Symlink,
