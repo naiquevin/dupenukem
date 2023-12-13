@@ -1,10 +1,10 @@
-use crate::fileutil::{traverse_bfs, find_duplicates};
-use chrono::{DateTime, Local, FixedOffset};
+use crate::fileutil::{find_duplicates, traverse_bfs};
+use chrono::{DateTime, FixedOffset, Local};
 use md5::Digest;
+use std::collections::HashMap;
 use std::fmt;
 use std::io;
-use std::path::{PathBuf, Path};
-use std::collections::HashMap;
+use std::path::{Path, PathBuf};
 
 pub mod textformat;
 
@@ -16,7 +16,6 @@ enum FileOp {
 }
 
 impl FileOp {
-
     fn decode(s: &str) -> Option<Self> {
         match s {
             "keep" => Some(Self::Keep),
@@ -29,14 +28,13 @@ impl FileOp {
 }
 
 impl fmt::Display for FileOp {
-
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         let c = match self {
             Self::Keep => "keep",
             Self::Symlink => "symlink",
             Self::Delete => "delete",
         };
-        write!(f, "{}",c)
+        write!(f, "{}", c)
     }
 }
 
@@ -46,7 +44,6 @@ struct FilePath {
 }
 
 impl FilePath {
-
     fn new(path: &PathBuf) -> FilePath {
         let op = if path.is_symlink() {
             FileOp::Symlink
@@ -56,7 +53,7 @@ impl FilePath {
         FilePath {
             // @NOTE: This is equivalent to cloning
             path: path.to_path_buf(),
-            op
+            op,
         }
     }
 }
@@ -64,11 +61,10 @@ impl FilePath {
 pub struct Snapshot {
     rootdir: PathBuf,
     generated_at: DateTime<FixedOffset>,
-    duplicates: HashMap<Digest, Vec<FilePath>>
+    duplicates: HashMap<Digest, Vec<FilePath>>,
 }
 
 impl Snapshot {
-
     pub fn of_rootdir(rootdir: &Path) -> io::Result<Snapshot> {
         let paths = traverse_bfs(&rootdir)?;
         let mut duplicates: HashMap<Digest, Vec<FilePath>> = HashMap::new();
@@ -79,7 +75,7 @@ impl Snapshot {
         let snap = Snapshot {
             rootdir: rootdir.to_path_buf(),
             generated_at: Local::now().fixed_offset(),
-            duplicates
+            duplicates,
         };
         Ok(snap)
     }

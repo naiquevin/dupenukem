@@ -1,7 +1,7 @@
-use super::{Snapshot, FilePath, FileOp};
+use super::{FileOp, FilePath, Snapshot};
 use crate::error::AppError;
 use chrono::{DateTime, FixedOffset};
-use hex::{FromHexError, self};
+use hex::{self, FromHexError};
 use md5::Digest;
 use regex::Regex;
 use std::collections::HashMap;
@@ -17,7 +17,6 @@ enum Line {
 }
 
 impl Line {
-
     fn encode(&self) -> String {
         match self {
             Self::Comment(comment) => format!("# {}", comment),
@@ -40,53 +39,55 @@ impl Line {
                     Ok(Self::Comment("".to_owned()))
                 } else if &cleaned[..2] == "#!" {
                     let re = Regex::new(r"^#!\s*([^:]+):\s*(.+)$").unwrap();
-                    let caps = re.captures(&cleaned)
-                        .ok_or(AppError::SnapshotParsing)?;
-                    let key = caps.get(1)
+                    let caps = re.captures(&cleaned).ok_or(AppError::SnapshotParsing)?;
+                    let key = caps
+                        .get(1)
                         .ok_or(AppError::SnapshotParsing)?
                         .as_str()
                         .to_owned();
-                    let val = caps.get(2)
+                    let val = caps
+                        .get(2)
                         .ok_or(AppError::SnapshotParsing)?
                         .as_str()
                         .to_owned();
                     Ok(Self::MetaData { key, val })
                 } else {
                     let re = Regex::new(r"^#\s(.+)$").unwrap();
-                    let caps = re.captures(&cleaned)
-                        .ok_or(AppError::SnapshotParsing)?;
-                    let comment = caps.get(1)
+                    let caps = re.captures(&cleaned).ok_or(AppError::SnapshotParsing)?;
+                    let comment = caps
+                        .get(1)
                         .ok_or(AppError::SnapshotParsing)?
                         .as_str()
                         .to_owned();
                     Ok(Self::Comment(comment))
                 }
-            },
+            }
             Some('[') => {
                 let re = Regex::new(r"^\[([^\]]+)\]").unwrap();
-                let caps = re.captures(&cleaned)
-                    .ok_or(AppError::SnapshotParsing)?;
-                let hash = caps.get(1)
+                let caps = re.captures(&cleaned).ok_or(AppError::SnapshotParsing)?;
+                let hash = caps
+                    .get(1)
                     .ok_or(AppError::SnapshotParsing)?
                     .as_str()
                     .to_owned();
                 Ok(Self::Checksum(hash))
-            },
+            }
             Some(_) => {
                 let re = Regex::new(r"^(keep|symlink|delete)\s(.+)$").unwrap();
-                let caps = re.captures(&cleaned)
-                    .ok_or(AppError::SnapshotParsing)?;
-                let op = caps.get(1)
+                let caps = re.captures(&cleaned).ok_or(AppError::SnapshotParsing)?;
+                let op = caps
+                    .get(1)
                     .ok_or(AppError::SnapshotParsing)?
                     .as_str()
                     .to_owned();
-                let path = caps.get(2)
+                let path = caps
+                    .get(2)
                     .ok_or(AppError::SnapshotParsing)?
                     .as_str()
                     .to_owned();
                 Ok(Self::PathInfo { op, path })
             }
-            None => Ok(Self::Blank)
+            None => Ok(Self::Blank),
         }
     }
 }
@@ -99,7 +100,7 @@ fn render_lines(snap: &Snapshot) -> Vec<Line> {
     // Add root dir as metadata
     lines.push(Line::MetaData {
         key: "Root Directory".to_string(),
-        val: snap.rootdir.display().to_string()
+        val: snap.rootdir.display().to_string(),
     });
 
     // Add time of generation as metadata
@@ -116,7 +117,7 @@ fn render_lines(snap: &Snapshot) -> Vec<Line> {
         for v in vs {
             lines.push(Line::PathInfo {
                 path: v.path.to_str().unwrap().to_owned(),
-                op: v.op.to_string()
+                op: v.op.to_string(),
             });
         }
         lines.push(Line::Blank);
@@ -156,10 +157,10 @@ pub fn parse(str_lines: Vec<String>) -> Result<Snapshot, AppError> {
                 } else if key == "Generated at" {
                     generated_at = Some(DateTime::parse_from_rfc2822(val).unwrap());
                 }
-            },
+            }
             Ok(Line::Checksum(hash)) => {
                 curr_group = str_to_digest(hash.as_str()).ok();
-            },
+            }
             Ok(Line::PathInfo { path, op }) => {
                 let group = curr_group.unwrap();
                 let filepath = FilePath {
@@ -171,15 +172,14 @@ pub fn parse(str_lines: Vec<String>) -> Result<Snapshot, AppError> {
                 } else {
                     duplicates.insert(group, vec![filepath]);
                 }
-            },
+            }
             Err(_) => return Err(AppError::SnapshotParsing),
         }
     }
-    Ok(
-        Snapshot {
-            rootdir: rootdir.ok_or(AppError::SnapshotParsing)?,
-            generated_at: generated_at.ok_or(AppError::SnapshotParsing)?,
-            duplicates,
+    Ok(Snapshot {
+        rootdir: rootdir.ok_or(AppError::SnapshotParsing)?,
+        generated_at: generated_at.ok_or(AppError::SnapshotParsing)?,
+        duplicates,
     })
 }
 
@@ -216,34 +216,46 @@ mod tests {
     fn test_line_decode_metadata() {
         let x = Line::decode(&"#! Root Directory: /path/to/rootdir".to_owned());
         assert!(x.is_ok());
-        assert_eq!(Line::MetaData {
-            key: "Root Directory".to_owned(),
-            val: "/path/to/rootdir".to_owned(),
-        }, x.unwrap());
+        assert_eq!(
+            Line::MetaData {
+                key: "Root Directory".to_owned(),
+                val: "/path/to/rootdir".to_owned(),
+            },
+            x.unwrap()
+        );
 
         // Without space after colon
         let x = Line::decode(&"#! Root Directory:/path/to/rootdir".to_owned());
         assert!(x.is_ok());
-        assert_eq!(Line::MetaData {
-            key: "Root Directory".to_owned(),
-            val: "/path/to/rootdir".to_owned(),
-        }, x.unwrap());
+        assert_eq!(
+            Line::MetaData {
+                key: "Root Directory".to_owned(),
+                val: "/path/to/rootdir".to_owned(),
+            },
+            x.unwrap()
+        );
 
         // Without space after exclamation
         let x = Line::decode(&"#!Root Directory:/path/to/rootdir".to_owned());
         assert!(x.is_ok());
-        assert_eq!(Line::MetaData {
-            key: "Root Directory".to_owned(),
-            val: "/path/to/rootdir".to_owned(),
-        }, x.unwrap());
+        assert_eq!(
+            Line::MetaData {
+                key: "Root Directory".to_owned(),
+                val: "/path/to/rootdir".to_owned(),
+            },
+            x.unwrap()
+        );
 
         // Unrecognized metadata
         let x = Line::decode(&"#! Foo: bar".to_owned());
         assert!(x.is_ok());
-        assert_eq!(Line::MetaData {
-            key: "Foo".to_owned(),
-            val: "bar".to_owned(),
-        }, x.unwrap());
+        assert_eq!(
+            Line::MetaData {
+                key: "Foo".to_owned(),
+                val: "bar".to_owned(),
+            },
+            x.unwrap()
+        );
 
         // When `#!` prefix is incorrectly used
         let x = Line::decode(&"#!".to_owned());
@@ -265,8 +277,8 @@ mod tests {
         match x {
             Ok(Line::Checksum(d)) => {
                 assert_eq!("fd2dd43f6cd0565ed876ca1ac2dfc708".to_owned(), d);
-            },
-            _ => assert!(false)
+            }
+            _ => assert!(false),
         }
     }
 
@@ -274,24 +286,33 @@ mod tests {
     fn test_line_decode_pathinfo() {
         let x = Line::decode(&"keep /foo/bar/1.txt".to_owned());
         assert!(x.is_ok());
-        assert_eq!(Line::PathInfo {
-            path: "/foo/bar/1.txt".to_owned(),
-            op: "keep".to_owned(),
-        }, x.unwrap());
+        assert_eq!(
+            Line::PathInfo {
+                path: "/foo/bar/1.txt".to_owned(),
+                op: "keep".to_owned(),
+            },
+            x.unwrap()
+        );
 
         let y = Line::decode(&"symlink /foo/bar/1.txt".to_owned());
         assert!(y.is_ok());
-        assert_eq!(Line::PathInfo {
-            path: "/foo/bar/1.txt".to_owned(),
-            op: "symlink".to_owned(),
-        }, y.unwrap());
+        assert_eq!(
+            Line::PathInfo {
+                path: "/foo/bar/1.txt".to_owned(),
+                op: "symlink".to_owned(),
+            },
+            y.unwrap()
+        );
 
         let z = Line::decode(&"delete /foo/bar/1.txt".to_owned());
         assert!(z.is_ok());
-        assert_eq!(Line::PathInfo {
-            path: "/foo/bar/1.txt".to_owned(),
-            op: "delete".to_owned(),
-        }, z.unwrap());
+        assert_eq!(
+            Line::PathInfo {
+                path: "/foo/bar/1.txt".to_owned(),
+                op: "delete".to_owned(),
+            },
+            z.unwrap()
+        );
 
         // with unknown marker
         let u = Line::decode(&"create /foo/bar/1.txt".to_owned());
@@ -325,7 +346,10 @@ mod tests {
             assert_eq!(3, fps.len());
             // 1st filepath
             assert_eq!(FileOp::Symlink, fps[0].op);
-            assert_eq!("/foo/bar/1.txt".to_owned(), fps[0].path.display().to_string());
+            assert_eq!(
+                "/foo/bar/1.txt".to_owned(),
+                fps[0].path.display().to_string()
+            );
 
             // 2nd filepath
             assert_eq!(FileOp::Keep, fps[1].op);
@@ -333,7 +357,10 @@ mod tests {
 
             // 3rd filepath
             assert_eq!(FileOp::Delete, fps[2].op);
-            assert_eq!("/foo/bar/1_copy.txt".to_owned(), fps[2].path.display().to_string());
+            assert_eq!(
+                "/foo/bar/1_copy.txt".to_owned(),
+                fps[2].path.display().to_string()
+            );
         } else {
             assert!(false);
         }

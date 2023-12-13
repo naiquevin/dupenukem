@@ -1,4 +1,4 @@
-use crate::snapshot::{Snapshot, textformat};
+use crate::snapshot::{textformat, Snapshot};
 use std::path::Path;
 
 mod error;
