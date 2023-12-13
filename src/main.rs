@@ -1,6 +1,7 @@
 use crate::snapshot::{Snapshot, textformat};
 use std::path::Path;
 
+mod error;
 mod fileutil;
 mod snapshot;
 
