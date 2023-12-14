@@ -1,3 +1,4 @@
+use log::{debug, warn};
 use md5::{self, Digest};
 use std::collections::HashMap;
 use std::collections::VecDeque;
@@ -67,23 +68,23 @@ fn try_md5_hash(rootdir: &Path, path: &PathBuf) -> Option<Digest> {
         if within_rootdir(rootdir, path) {
             match path.canonicalize().ok() {
                 Some(t) => {
-                    eprintln!("Reading file: {} -> {}", path.display(), t.display());
+                    debug!("Reading file: {} -> {}", path.display(), t.display());
                     file_contents_as_md5(&t).ok()
                 }
                 None => {
-                    eprintln!("Skipping broken link: {}", path.display());
+                    warn!("Skipping broken link: {}", path.display());
                     None
                 }
             }
         } else {
-            eprintln!(
+            warn!(
                 "Skipping symlink to outside the root dir: {}",
                 path.display()
             );
             None
         }
     } else {
-        eprintln!("Reading file: {}", path.display());
+        debug!("Reading file: {}", path.display());
         file_contents_as_md5(&path).ok()
     }
 }
