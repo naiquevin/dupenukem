@@ -4,7 +4,7 @@ use md5::Digest;
 use std::collections::HashMap;
 use std::fmt;
 use std::io;
-use std::path::{Path, PathBuf};
+use std::path::PathBuf;
 
 pub mod textformat;
 
@@ -65,7 +65,7 @@ pub struct Snapshot {
 }
 
 impl Snapshot {
-    pub fn of_rootdir(rootdir: &Path) -> io::Result<Snapshot> {
+    pub fn of_rootdir(rootdir: &PathBuf) -> io::Result<Snapshot> {
         let paths = traverse_bfs(&rootdir)?;
         let mut duplicates: HashMap<Digest, Vec<FilePath>> = HashMap::new();
         for (digest, paths) in find_duplicates(rootdir, &paths)?.iter() {
