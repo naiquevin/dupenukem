@@ -1,4 +1,4 @@
-#[derive(Debug, Eq, PartialEq)]
+#[derive(Debug)]
 pub enum AppError {
     SnapshotParsing,
     Cmd,

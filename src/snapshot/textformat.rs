@@ -258,17 +258,23 @@ mod tests {
         );
 
         // When `#!` prefix is incorrectly used
-        let x = Line::decode(&"#!".to_owned());
-        assert!(x.is_err());
-        assert_eq!(AppError::SnapshotParsing, x.unwrap_err());
+        match Line::decode(&"#!".to_owned()) {
+            Err(AppError::SnapshotParsing) => assert!(true),
+            Err(_) => assert!(false),
+            Ok(_) => assert!(false),
+        }
 
-        let x = Line::decode(&"#! Just a comment by mistake".to_owned());
-        assert!(x.is_err());
-        assert_eq!(AppError::SnapshotParsing, x.unwrap_err());
+        match Line::decode(&"#! Just a comment by mistake".to_owned()) {
+            Err(AppError::SnapshotParsing) => assert!(true),
+            Err(_) => assert!(false),
+            Ok(_) => assert!(false),
+        }
 
-        let x = Line::decode(&"#! Empty metadata: ".to_owned());
-        assert!(x.is_err());
-        assert_eq!(AppError::SnapshotParsing, x.unwrap_err());
+        match Line::decode(&"#! Empty metadata: ".to_owned()) {
+            Err(AppError::SnapshotParsing) => assert!(true),
+            Err(_) => assert!(false),
+            Ok(_) => assert!(false),
+        }
     }
 
     #[test]
@@ -315,9 +321,11 @@ mod tests {
         );
 
         // with unknown marker
-        let u = Line::decode(&"create /foo/bar/1.txt".to_owned());
-        assert!(u.is_err());
-        assert_eq!(AppError::SnapshotParsing, u.unwrap_err());
+        match Line::decode(&"create /foo/bar/1.txt".to_owned()) {
+            Err(AppError::SnapshotParsing) => assert!(true),
+            Err(_) => assert!(false),
+            Ok(_) => assert!(false),
+        }
     }
 
     // Tests for `parse` method
