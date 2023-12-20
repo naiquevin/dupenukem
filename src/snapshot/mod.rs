@@ -7,6 +7,7 @@ use std::io;
 use std::path::PathBuf;
 
 pub mod textformat;
+pub mod validation;
 
 #[derive(Debug, PartialEq, Eq)]
 enum FileOp {
@@ -38,7 +39,7 @@ impl fmt::Display for FileOp {
     }
 }
 
-struct FilePath {
+pub struct FilePath {
     path: PathBuf,
     op: FileOp,
 }
@@ -79,4 +80,10 @@ impl Snapshot {
         };
         Ok(snap)
     }
+}
+
+#[allow(dead_code)]
+struct Action<'a> {
+    filepath: &'a FilePath,
+    is_no_op: bool,
 }

@@ -54,12 +54,12 @@ fn file_contents_as_bytes<P: AsRef<Path>>(path: P) -> io::Result<Vec<u8>> {
     Ok(buf)
 }
 
-fn file_contents_as_md5<P: AsRef<Path>>(path: &P) -> io::Result<Digest> {
+pub fn file_contents_as_md5<P: AsRef<Path>>(path: &P) -> io::Result<Digest> {
     let data = file_contents_as_bytes(path)?;
     Ok(md5::compute(data))
 }
 
-fn within_rootdir(rootdir: &Path, path: &PathBuf) -> bool {
+pub fn within_rootdir(rootdir: &Path, path: &PathBuf) -> bool {
     path.ancestors().find(|d| *d == rootdir).is_some()
 }
 
