@@ -1,0 +1,12 @@
+#!/usr/bin/env bash
+
+set -e
+
+rootdir=$1
+script=$(realpath $2)
+
+mkdir $rootdir
+
+cd $1
+
+bash $script
