@@ -2,6 +2,7 @@ use crate::error::AppError;
 use crate::snapshot::{textformat, Snapshot};
 use clap::{self, Parser, Subcommand};
 use log::info;
+use std::io;
 use std::path::PathBuf;
 use std::process;
 
@@ -9,10 +10,26 @@ mod error;
 mod fileutil;
 mod snapshot;
 
+pub fn stdin_to_vec() -> Vec<String> {
+    let stdin = io::stdin();
+    let mut result = Vec::new();
+    for line in stdin.lines() {
+        let s = line.unwrap();
+        result.push(s);
+    }
+    result
+}
+
 #[derive(Subcommand)]
 enum Command {
     #[command(about = "Find duplicates and generate a snapshot (text representation)")]
     Find { rootdir: PathBuf },
+
+    #[command(about = "Validate snapshot (from text representation)")]
+    Validate {
+        #[arg(long, help = "Read text from std input")]
+        stdin: bool,
+    },
 }
 
 #[derive(Parser)]
@@ -32,6 +49,24 @@ impl Cli {
                     println!("{}", line);
                 }
                 Ok(())
+            }
+            Some(Command::Validate { stdin }) => {
+                if *stdin {
+                    let input = stdin_to_vec();
+                    let snapshot = textformat::parse(input)?;
+                    match snapshot.validate() {
+                        Ok(actions) => {
+                            for action in actions {
+                                println!("{:?}", action);
+                            }
+                            Ok(())
+                        }
+                        Err(e) => Err(e),
+                    }
+                } else {
+                    log::error!("File input not supported. Please use --stdin for now");
+                    Err(AppError::Cmd)
+                }
             }
             None => {
                 eprintln!("Please specify the command");

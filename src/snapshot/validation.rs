@@ -18,7 +18,6 @@ pub enum Error {
     Io(io::Error),
 }
 
-#[allow(dead_code)]
 fn validate_rootdir(path: &PathBuf) -> Result<(), Error> {
     match path.try_exists() {
         Ok(true) => Ok(()),
@@ -33,7 +32,6 @@ fn validate_rootdir(path: &PathBuf) -> Result<(), Error> {
     }
 }
 
-#[allow(dead_code)]
 fn validate_group(hash: &Digest, filepaths: &Vec<FilePath>) -> Result<(), Error> {
     let n = filepaths.len();
     if n <= 1 {
@@ -125,7 +123,6 @@ fn partially_validate_path_to_delete<'a>(filepath: &'a FilePath) -> Result<Actio
     }
 }
 
-#[allow(dead_code)]
 fn validate_path<'a>(
     rootdir: &PathBuf,
     hash: &Digest,
@@ -161,8 +158,7 @@ fn validate_path<'a>(
     }
 }
 
-#[allow(dead_code)]
-fn validate(snap: &Snapshot) -> Result<Vec<Action>, Error> {
+pub fn validate(snap: &Snapshot) -> Result<Vec<Action>, Error> {
     let mut actions: Vec<Action> = Vec::new();
     if let Err(e) = validate_rootdir(&snap.rootdir) {
         return Err(e);

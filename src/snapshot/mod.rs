@@ -1,3 +1,4 @@
+use crate::error::AppError;
 use crate::fileutil::{find_duplicates, traverse_bfs};
 use chrono::{DateTime, FixedOffset, Local};
 use md5::Digest;
@@ -39,6 +40,7 @@ impl fmt::Display for FileOp {
     }
 }
 
+#[derive(Debug)]
 pub struct FilePath {
     path: PathBuf,
     op: FileOp,
@@ -80,10 +82,15 @@ impl Snapshot {
         };
         Ok(snap)
     }
+
+    pub fn validate(&self) -> Result<Vec<Action>, AppError> {
+        validation::validate(&self).map_err(AppError::SnapshotValidation)
+    }
 }
 
+#[derive(Debug)]
 #[allow(dead_code)]
-struct Action<'a> {
+pub struct Action<'a> {
     filepath: &'a FilePath,
     is_no_op: bool,
 }
