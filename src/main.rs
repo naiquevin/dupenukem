@@ -32,7 +32,7 @@ struct Cli {
 
 fn cmd_find(rootdir: &PathBuf) -> Result<(), AppError> {
     info!("Generating snapshot for dir: {}", rootdir.display());
-    let snap = Snapshot::of_rootdir(rootdir).unwrap();
+    let snap = Snapshot::of_rootdir(rootdir).map_err(AppError::Io)?;
     for line in textformat::render(&snap).iter() {
         println!("{}", line);
     }
