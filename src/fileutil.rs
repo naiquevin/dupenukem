@@ -65,29 +65,43 @@ pub fn file_contents_as_md5<P: AsRef<Path>>(path: &P) -> io::Result<Digest> {
     Ok(md5::compute(data))
 }
 
-pub fn within_rootdir(rootdir: &Path, path: &PathBuf) -> bool {
+pub fn within_rootdir(rootdir: &PathBuf, path: &PathBuf) -> bool {
     path.ancestors().find(|d| *d == rootdir).is_some()
 }
 
+/// Tries to return the `md5` hash of the file located at the given path
 fn try_md5_hash(rootdir: &Path, path: &PathBuf) -> Option<Digest> {
     if path.is_symlink() {
-        if within_rootdir(rootdir, path) {
-            match path.canonicalize().ok() {
-                Some(t) => {
+        match path.canonicalize().ok() {
+            Some(t) => {
+                // Here we canonicalize the rootdir as well before
+                // checking that the file that the symlink points to
+                // is under the rootdir. This is to handle the case
+                // where the rootdir itself is a symlink (For eg. on
+                // MacOS, the `tmp` dir is a symlink to
+                // `/private/tmp`).
+                //
+                // Also note that the use of `unwrap` here is
+                // acceptable because at this point, it's safe to
+                // assume that `rootdir` exists and is a valid file
+                // path and hence, it doesn't make sense to handle
+                // errors.
+                let canon_rootdir = rootdir.canonicalize().unwrap();
+                if within_rootdir(&canon_rootdir, &t) {
                     debug!("Reading file: {} -> {}", path.display(), t.display());
                     file_contents_as_md5(&t).ok()
-                }
-                None => {
-                    warn!("Skipping broken link: {}", path.display());
+                } else {
+                    warn!(
+                        "Skipping symlink to outside the root dir: {}",
+                        t.display()
+                    );
                     None
                 }
             }
-        } else {
-            warn!(
-                "Skipping symlink to outside the root dir: {}",
-                path.display()
-            );
-            None
+            None => {
+                warn!("Skipping broken link: {}", path.display());
+                None
+            }
         }
     } else {
         debug!("Reading file: {}", path.display());
