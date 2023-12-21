@@ -2,6 +2,7 @@ use crate::error::AppError;
 use crate::snapshot::{textformat, Snapshot};
 use clap::{self, Parser, Subcommand};
 use log::info;
+use std::collections::HashSet;
 use std::path::PathBuf;
 use std::process;
 
@@ -13,7 +14,11 @@ mod snapshot;
 #[derive(Subcommand)]
 enum Command {
     #[command(about = "Find duplicates and generate a snapshot (text representation)")]
-    Find { rootdir: PathBuf },
+    Find {
+        #[arg(long, help = "Exclude (relative) paths")]
+        exclude: Option<Vec<String>>,
+        rootdir: PathBuf,
+    },
 
     #[command(about = "Validate snapshot (from text representation)")]
     Validate {
@@ -30,9 +35,19 @@ struct Cli {
     command: Option<Command>,
 }
 
-fn cmd_find(rootdir: &PathBuf) -> Result<(), AppError> {
+fn cmd_find(rootdir: &PathBuf, exclude: Option<&Vec<String>>) -> Result<(), AppError> {
+    let excludes = exclude.map(|paths| HashSet::from_iter(paths.iter().map(|p| rootdir.join(p))));
     info!("Generating snapshot for dir: {}", rootdir.display());
-    let snap = Snapshot::of_rootdir(rootdir).map_err(AppError::Io)?;
+    if let Some(exs) = &excludes {
+        info!(
+            "Exclusions: {}",
+            exs.iter()
+                .map(|p| p.display().to_string())
+                .collect::<Vec<String>>()
+                .join(", ")
+        );
+    }
+    let snap = Snapshot::of_rootdir(rootdir, excludes.as_ref()).map_err(AppError::Io)?;
     for line in textformat::render(&snap).iter() {
         println!("{}", line);
     }
@@ -67,7 +82,7 @@ fn cmd_validate(snapshot_path: &Option<PathBuf>, stdin: &bool) -> Result<(), App
 impl Cli {
     fn execute(&self) -> Result<(), AppError> {
         match &self.command {
-            Some(Command::Find { rootdir }) => cmd_find(rootdir),
+            Some(Command::Find { exclude, rootdir }) => cmd_find(rootdir, exclude.as_ref()),
             Some(Command::Validate {
                 stdin,
                 snapshot_path,

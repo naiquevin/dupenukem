@@ -1,15 +1,19 @@
 use log::{debug, warn};
 use md5::{self, Digest};
-use std::collections::HashMap;
-use std::collections::VecDeque;
+use std::collections::{HashMap, HashSet, VecDeque};
 use std::fs;
 use std::io::{self, Read};
 use std::path::{Path, PathBuf};
 
-/// Function to traverse a directory recursively using the
-/// breadth-first approach and return a vector of paths to all the
-/// files.
-pub fn traverse_bfs(dirpath: &Path) -> io::Result<Vec<PathBuf>> {
+/// Traverses the `dirpath` recursively using breadth first search
+/// approach and returns a vector of `PathBuf`.
+///
+/// Optionally, a hashset of `PathBuf` refs can be passed as the
+/// `excludes` arg. These paths will be excluded during traversal.
+pub fn traverse_bfs(
+    dirpath: &Path,
+    excludes: Option<&HashSet<PathBuf>>,
+) -> io::Result<Vec<PathBuf>> {
     let mut queue: VecDeque<PathBuf> = VecDeque::new();
     let mut result: Vec<PathBuf> = Vec::new();
     queue.push_back(dirpath.to_path_buf());
@@ -18,7 +22,9 @@ pub fn traverse_bfs(dirpath: &Path) -> io::Result<Vec<PathBuf>> {
             Some(p) => {
                 for entry in fs::read_dir(p)? {
                     let ep = entry?.path();
-                    if ep.is_dir() {
+                    if excludes.is_some_and(|s| s.contains(&ep)) {
+                        continue;
+                    } else if ep.is_dir() {
                         queue.push_back(ep);
                     } else {
                         result.push(ep);
