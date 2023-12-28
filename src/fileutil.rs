@@ -146,17 +146,9 @@ fn possible_duplicates(paths: Vec<&PathBuf>) -> io::Result<Vec<&PathBuf>> {
     Ok(res)
 }
 
-pub fn find_duplicates<'a>(
-    rootdir: &Path,
-    paths: &'a Vec<PathBuf>,
-) -> io::Result<HashMap<Digest, Vec<&'a PathBuf>>> {
+fn group_dups_by_md5(paths: Vec<&PathBuf>) -> io::Result<HashMap<Digest, Vec<&PathBuf>>> {
     let mut res: HashMap<Digest, Vec<&PathBuf>> = HashMap::new();
-    let valid_paths = paths
-        .iter()
-        .filter(|p| is_path_valid(rootdir, p))
-        .collect::<Vec<&PathBuf>>();
-    let poss_dups = possible_duplicates(valid_paths)?;
-    for path in poss_dups {
+    for path in paths {
         let hash = file_contents_as_md5(&path)?;
         match res.get_mut(&hash) {
             None => {
@@ -169,4 +161,16 @@ pub fn find_duplicates<'a>(
     }
     res.retain(|_, v| v.len() > 1);
     Ok(res)
+}
+
+pub fn find_duplicates<'a>(
+    rootdir: &Path,
+    paths: &'a Vec<PathBuf>,
+) -> io::Result<HashMap<Digest, Vec<&'a PathBuf>>> {
+    let valid_paths = paths
+        .iter()
+        .filter(|p| is_path_valid(rootdir, p))
+        .collect::<Vec<&PathBuf>>();
+    let poss_dups = possible_duplicates(valid_paths)?;
+    group_dups_by_md5(poss_dups)
 }
