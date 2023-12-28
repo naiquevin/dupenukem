@@ -109,7 +109,12 @@ fn is_path_valid(rootdir: &Path, path: &PathBuf) -> bool {
             }
         }
     } else {
-        true
+        if path.ends_with("Icon\r") {
+            warn!("Skipping Icon\\r files (macOS): {:?}", path.display());
+            false
+        } else {
+            true
+        }
     }
 }
 
