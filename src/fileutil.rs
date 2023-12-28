@@ -1,4 +1,4 @@
-use log::{debug, warn};
+use log::warn;
 use md5::{self, Digest};
 use std::collections::{HashMap, HashSet, VecDeque};
 use std::fs;
@@ -69,11 +69,20 @@ pub fn within_rootdir(rootdir: &PathBuf, path: &PathBuf) -> bool {
     path.ancestors().find(|d| *d == rootdir).is_some()
 }
 
-/// Tries to return the `md5` hash of the file located at the given path
-fn try_md5_hash(rootdir: &Path, path: &PathBuf) -> Option<Digest> {
+// Checks whether a path is valid
+//
+// A valid path in the context of this application is the one that
+//
+//   1. exists
+//   2. in case a symlink, is not broken and within the root dir
+//
+// May panic if the rootdir is a broken symlink. But since we can
+// assume that rootdir is already verified before this point, it's ok
+// to skip error handling for that case.
+fn is_path_valid(rootdir: &Path, path: &PathBuf) -> bool {
     if path.is_symlink() {
-        match path.canonicalize().ok() {
-            Some(t) => {
+        match path.canonicalize() {
+            Ok(t) => {
                 // Here we canonicalize the rootdir as well before
                 // checking that the file that the symlink points to
                 // is under the rootdir. This is to handle the case
@@ -88,25 +97,48 @@ fn try_md5_hash(rootdir: &Path, path: &PathBuf) -> Option<Digest> {
                 // errors.
                 let canon_rootdir = rootdir.canonicalize().unwrap();
                 if within_rootdir(&canon_rootdir, &t) {
-                    debug!("Reading file: {} -> {}", path.display(), t.display());
-                    file_contents_as_md5(&t).ok()
+                    true
                 } else {
-                    warn!(
-                        "Skipping symlink to outside the root dir: {}",
-                        t.display()
-                    );
-                    None
+                    warn!("Skipping symlink to outside the root dir: {}", t.display());
+                    false
                 }
             }
-            None => {
+            Err(_) => {
                 warn!("Skipping broken link: {}", path.display());
-                None
+                false
             }
         }
     } else {
-        debug!("Reading file: {}", path.display());
-        file_contents_as_md5(&path).ok()
+        true
     }
+}
+
+fn group_by_size(paths: Vec<&PathBuf>) -> io::Result<HashMap<u64, Vec<&PathBuf>>> {
+    let mut res: HashMap<u64, Vec<&PathBuf>> = HashMap::new();
+    for path in paths {
+        let size = path.metadata()?.len();
+        match res.get_mut(&size) {
+            Some(v) => {
+                v.push(path);
+            }
+            None => {
+                res.insert(size, vec![path]);
+            }
+        }
+    }
+    Ok(res)
+}
+
+fn possible_duplicates(paths: Vec<&PathBuf>) -> io::Result<Vec<&PathBuf>> {
+    let mut grps = group_by_size(paths)?;
+    grps.retain(|_, v| v.len() > 1);
+    let mut res: Vec<&PathBuf> = Vec::new();
+    for (_, paths) in grps {
+        for path in paths {
+            res.push(path)
+        }
+    }
+    Ok(res)
 }
 
 pub fn find_duplicates<'a>(
@@ -114,17 +146,21 @@ pub fn find_duplicates<'a>(
     paths: &'a Vec<PathBuf>,
 ) -> io::Result<HashMap<Digest, Vec<&'a PathBuf>>> {
     let mut res: HashMap<Digest, Vec<&PathBuf>> = HashMap::new();
-    for path in paths {
-        if let Some(hash) = try_md5_hash(rootdir, path) {
-            match res.get_mut(&hash) {
-                None => {
-                    res.insert(hash, vec![path]);
-                }
-                Some(v) => {
-                    v.push(path);
-                }
-            };
-        }
+    let valid_paths = paths
+        .iter()
+        .filter(|p| is_path_valid(rootdir, p))
+        .collect::<Vec<&PathBuf>>();
+    let poss_dups = possible_duplicates(valid_paths)?;
+    for path in poss_dups {
+        let hash = file_contents_as_md5(&path)?;
+        match res.get_mut(&hash) {
+            None => {
+                res.insert(hash, vec![path]);
+            }
+            Some(v) => {
+                v.push(path);
+            }
+        };
     }
     res.retain(|_, v| v.len() > 1);
     Ok(res)
