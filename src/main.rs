@@ -1,5 +1,5 @@
 use crate::error::AppError;
-use crate::snapshot::{textformat, Snapshot};
+use crate::snapshot::{execution, textformat, Snapshot};
 use clap::{self, Parser, Subcommand};
 use log::info;
 use std::collections::HashSet;
@@ -28,6 +28,13 @@ enum Command {
 
     #[command(about = "Validate snapshot (from text representation)")]
     Validate {
+        #[arg(long, help = "Read text from std input")]
+        stdin: bool,
+        snapshot_path: Option<PathBuf>,
+    },
+
+    #[command(about = "Apply changes from snapshot file")]
+    Apply {
         #[arg(long, help = "Read text from std input")]
         stdin: bool,
         snapshot_path: Option<PathBuf>,
@@ -64,8 +71,8 @@ fn cmd_find(
     Ok(())
 }
 
-fn cmd_validate(snapshot_path: Option<&PathBuf>, stdin: &bool) -> Result<(), AppError> {
-    let input = match snapshot_path {
+fn read_input(path: Option<&PathBuf>, stdin: &bool) -> Result<Vec<String>, AppError> {
+    match path {
         Some(p) => ioutil::read_lines_in_file(p).map_err(AppError::Io),
         None => {
             if *stdin {
@@ -76,7 +83,11 @@ fn cmd_validate(snapshot_path: Option<&PathBuf>, stdin: &bool) -> Result<(), App
                 ))
             }
         }
-    }?;
+    }
+}
+
+fn cmd_validate(snapshot_path: Option<&PathBuf>, stdin: &bool) -> Result<(), AppError> {
+    let input = read_input(snapshot_path, stdin)?;
     let snapshot = textformat::parse(input)?;
     match snapshot.validate() {
         Ok(actions) => {
@@ -87,6 +98,12 @@ fn cmd_validate(snapshot_path: Option<&PathBuf>, stdin: &bool) -> Result<(), App
         }
         Err(e) => Err(e),
     }
+}
+
+fn cmd_apply(snapshot_path: Option<&PathBuf>, stdin: &bool) -> Result<(), AppError> {
+    let input = read_input(snapshot_path, stdin)?;
+    let snapshot = textformat::parse(input)?;
+    snapshot.validate().and_then(execution::execute)
 }
 
 impl Cli {
@@ -101,6 +118,10 @@ impl Cli {
                 stdin,
                 snapshot_path,
             }) => cmd_validate(snapshot_path.as_ref(), stdin),
+            Some(Command::Apply {
+                stdin,
+                snapshot_path,
+            }) => cmd_apply(snapshot_path.as_ref(), stdin),
             None => Err(AppError::Cmd("Please specify the command".to_owned())),
         }
     }

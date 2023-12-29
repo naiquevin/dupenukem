@@ -7,6 +7,7 @@ use std::fmt;
 use std::io;
 use std::path::PathBuf;
 
+pub mod execution;
 pub mod textformat;
 pub mod validation;
 
@@ -96,4 +97,26 @@ impl Snapshot {
 pub struct Action<'a> {
     filepath: &'a FilePath,
     is_no_op: bool,
+}
+
+impl<'a> Action<'a> {
+    pub fn log(&self, dry_run: &bool) -> Option<String> {
+        let mut res = String::from("");
+        if *dry_run {
+            res.push_str("[DRY RUN] ");
+        }
+        if self.is_no_op {
+            res.push_str("[NO-OP] ");
+        }
+        let msg = match self.filepath.op {
+            FileOp::Keep => return None,
+            FileOp::Symlink => format!(
+                "Replacing file with symlink: {}",
+                self.filepath.path.display()
+            ),
+            FileOp::Delete => format!("Deleting file: {}", self.filepath.path.display()),
+        };
+        res.push_str(msg.as_str());
+        Some(res)
+    }
 }
