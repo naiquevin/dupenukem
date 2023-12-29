@@ -64,7 +64,7 @@ fn cmd_find(
     Ok(())
 }
 
-fn cmd_validate(snapshot_path: &Option<PathBuf>, stdin: &bool) -> Result<(), AppError> {
+fn cmd_validate(snapshot_path: Option<&PathBuf>, stdin: &bool) -> Result<(), AppError> {
     let input = match snapshot_path {
         Some(p) => ioutil::read_lines_in_file(p).map_err(AppError::Io),
         None => {
@@ -100,7 +100,7 @@ impl Cli {
             Some(Command::Validate {
                 stdin,
                 snapshot_path,
-            }) => cmd_validate(snapshot_path, stdin),
+            }) => cmd_validate(snapshot_path.as_ref(), stdin),
             None => Err(AppError::Cmd("Please specify the command".to_owned())),
         }
     }
