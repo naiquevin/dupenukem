@@ -17,6 +17,12 @@ enum Command {
     Find {
         #[arg(long, help = "Exclude (relative) paths")]
         exclude: Option<Vec<String>>,
+        #[arg(
+            long,
+            default_value_t = false,
+            help = "Quick mode in which sha256 comparison is skipped and only md5 hashes are compared instead"
+        )]
+        quick: bool,
         rootdir: PathBuf,
     },
 
@@ -35,7 +41,11 @@ struct Cli {
     command: Option<Command>,
 }
 
-fn cmd_find(rootdir: &PathBuf, exclude: Option<&Vec<String>>) -> Result<(), AppError> {
+fn cmd_find(
+    rootdir: &PathBuf,
+    exclude: Option<&Vec<String>>,
+    quick: &bool,
+) -> Result<(), AppError> {
     let excludes = exclude.map(|paths| HashSet::from_iter(paths.iter().map(|p| rootdir.join(p))));
     info!("Generating snapshot for dir: {}", rootdir.display());
     if let Some(exs) = &excludes {
@@ -47,7 +57,7 @@ fn cmd_find(rootdir: &PathBuf, exclude: Option<&Vec<String>>) -> Result<(), AppE
                 .join(", ")
         );
     }
-    let snap = Snapshot::of_rootdir(rootdir, excludes.as_ref()).map_err(AppError::Io)?;
+    let snap = Snapshot::of_rootdir(rootdir, excludes.as_ref(), quick).map_err(AppError::Io)?;
     for line in textformat::render(&snap).iter() {
         println!("{}", line);
     }
@@ -82,7 +92,11 @@ fn cmd_validate(snapshot_path: &Option<PathBuf>, stdin: &bool) -> Result<(), App
 impl Cli {
     fn execute(&self) -> Result<(), AppError> {
         match &self.command {
-            Some(Command::Find { exclude, rootdir }) => cmd_find(rootdir, exclude.as_ref()),
+            Some(Command::Find {
+                exclude,
+                quick,
+                rootdir,
+            }) => cmd_find(rootdir, exclude.as_ref(), quick),
             Some(Command::Validate {
                 stdin,
                 snapshot_path,

@@ -71,9 +71,10 @@ impl Snapshot {
     pub fn of_rootdir(
         rootdir: &PathBuf,
         excludes: Option<&HashSet<PathBuf>>,
+        quick: &bool,
     ) -> io::Result<Snapshot> {
         let paths = traverse_bfs(rootdir, excludes)?;
-        let duplicates = find_duplicates(rootdir, &paths)?
+        let duplicates = find_duplicates(rootdir, &paths, quick)?
             .into_iter()
             .map(|(d, ps)| (d, ps.into_iter().map(FilePath::new).collect()))
             .collect::<HashMap<Digest, Vec<FilePath>>>();

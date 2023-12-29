@@ -190,6 +190,7 @@ fn confirm_dups(
 pub fn find_duplicates<'a>(
     rootdir: &Path,
     paths: &'a Vec<PathBuf>,
+    quick: &bool,
 ) -> io::Result<HashMap<Digest, Vec<&'a PathBuf>>> {
     let valid_paths = paths
         .iter()
@@ -197,5 +198,9 @@ pub fn find_duplicates<'a>(
         .collect::<Vec<&PathBuf>>();
     let poss_dups = possible_duplicates(valid_paths)?;
     let dups = group_dups_by_md5(poss_dups)?;
-    confirm_dups(dups)
+    if *quick {
+        confirm_dups(dups)
+    } else {
+        Ok(dups)
+    }
 }
