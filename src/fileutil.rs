@@ -1,5 +1,6 @@
 use log::warn;
 use md5::{self, Digest};
+use sha2::{Digest as Sha2Digest, Sha256};
 use std::collections::{HashMap, HashSet, VecDeque};
 use std::fs;
 use std::io::{self, Read};
@@ -63,6 +64,12 @@ fn file_contents_as_bytes<P: AsRef<Path>>(path: P) -> io::Result<Vec<u8>> {
 pub fn file_contents_as_md5<P: AsRef<Path>>(path: &P) -> io::Result<Digest> {
     let data = file_contents_as_bytes(path)?;
     Ok(md5::compute(data))
+}
+
+pub fn file_contents_as_sha256<P: AsRef<Path>>(path: &P) -> io::Result<String> {
+    let data = file_contents_as_bytes(path)?;
+    let result = Sha256::digest(data);
+    Ok(format!("{:x}", result))
 }
 
 pub fn within_rootdir(rootdir: &PathBuf, path: &PathBuf) -> bool {
@@ -163,6 +170,23 @@ fn group_dups_by_md5(paths: Vec<&PathBuf>) -> io::Result<HashMap<Digest, Vec<&Pa
     Ok(res)
 }
 
+fn confirm_dups(
+    dups: HashMap<Digest, Vec<&PathBuf>>,
+) -> io::Result<HashMap<Digest, Vec<&PathBuf>>> {
+    let mut res: HashMap<Digest, Vec<&PathBuf>> = HashMap::new();
+    for (md5hash, paths) in dups {
+        let sha256hashes = paths
+            .iter()
+            .map(file_contents_as_sha256)
+            .map(|x| x.unwrap())
+            .collect::<HashSet<String>>();
+        if sha256hashes.len() == 1 {
+            res.insert(md5hash, paths);
+        }
+    }
+    Ok(res)
+}
+
 pub fn find_duplicates<'a>(
     rootdir: &Path,
     paths: &'a Vec<PathBuf>,
@@ -172,5 +196,6 @@ pub fn find_duplicates<'a>(
         .filter(|p| is_path_valid(rootdir, p))
         .collect::<Vec<&PathBuf>>();
     let poss_dups = possible_duplicates(valid_paths)?;
-    group_dups_by_md5(poss_dups)
+    let dups = group_dups_by_md5(poss_dups)?;
+    confirm_dups(dups)
 }
