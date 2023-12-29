@@ -73,11 +73,10 @@ impl Snapshot {
         excludes: Option<&HashSet<PathBuf>>,
     ) -> io::Result<Snapshot> {
         let paths = traverse_bfs(rootdir, excludes)?;
-        let mut duplicates: HashMap<Digest, Vec<FilePath>> = HashMap::new();
-        for (digest, paths) in find_duplicates(rootdir, &paths)?.iter() {
-            let filepaths = paths.iter().map(|p| FilePath::new(*p)).collect();
-            duplicates.insert(*digest, filepaths);
-        }
+        let duplicates = find_duplicates(rootdir, &paths)?
+            .into_iter()
+            .map(|(d, ps)| (d, ps.into_iter().map(FilePath::new).collect()))
+            .collect::<HashMap<Digest, Vec<FilePath>>>();
         let snap = Snapshot {
             rootdir: rootdir.to_path_buf(),
             generated_at: Local::now().fixed_offset(),
