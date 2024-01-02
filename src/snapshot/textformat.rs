@@ -140,7 +140,6 @@ fn str_to_digest(s: &str) -> Result<Digest, FromHexError> {
     Ok(Digest(bytea))
 }
 
-#[allow(dead_code)]
 pub fn parse(str_lines: Vec<String>) -> Result<Snapshot, AppError> {
     let lines = str_lines.iter().map(Line::decode);
     let mut rootdir: Option<PathBuf> = None;
