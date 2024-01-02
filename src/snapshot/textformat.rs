@@ -10,9 +10,17 @@ use std::path::PathBuf;
 #[derive(Debug, Eq, PartialEq)]
 enum Line {
     Comment(String),
-    MetaData { key: String, val: String },
+    MetaData {
+        key: String,
+        val: String,
+    },
     Checksum(String),
-    PathInfo { path: String, op: String },
+    PathInfo {
+        path: String,
+        op: String,
+        delim: Option<String>,
+        extra: Option<String>,
+    },
     Blank,
 }
 
@@ -22,7 +30,20 @@ impl Line {
             Self::Comment(comment) => format!("# {}", comment),
             Self::MetaData { key, val } => format!("#! {}: {}", key, val),
             Self::Checksum(hash) => format!("[{}]", hash),
-            Self::PathInfo { path, op } => format!("{} {}", op, path),
+            Self::PathInfo {
+                path,
+                op,
+                delim,
+                extra,
+            } => {
+                match &extra {
+                    // @NOTE: Here we're not handling the case where
+                    // delim is None. At this point it's not clear
+                    // whether that would be a good idea.
+                    Some(x) => format!("{} {} {} {}", op, path, delim.as_ref().unwrap(), x),
+                    None => format!("{} {}", op, path),
+                }
+            }
             Self::Blank => String::from(""),
         }
     }
@@ -85,7 +106,40 @@ impl Line {
                     .ok_or(AppError::SnapshotParsing)?
                     .as_str()
                     .to_owned();
-                Ok(Self::PathInfo { op, path })
+                if op == String::from("symlink") {
+                    let parts: Vec<&str> = path
+                        .split("->")
+                        .map(|s| s.trim())
+                        .filter(|s| *s != "")
+                        .collect();
+                    if parts.len() == 2 {
+                        let target = String::from(parts[0]);
+                        let src = String::from(parts[1]);
+                        Ok(Self::PathInfo {
+                            op,
+                            path: target,
+                            delim: Some(String::from("->")),
+                            extra: Some(src),
+                        })
+                    } else if parts.len() == 1 {
+                        let target = String::from(parts[0]);
+                        Ok(Self::PathInfo {
+                            op,
+                            path: target,
+                            delim: Some(String::from("->")),
+                            extra: None,
+                        })
+                    } else {
+                        Err(AppError::SnapshotParsing)
+                    }
+                } else {
+                    Ok(Self::PathInfo {
+                        op,
+                        path,
+                        delim: None,
+                        extra: None,
+                    })
+                }
             }
             None => Ok(Self::Blank),
         }
@@ -118,6 +172,9 @@ fn render_lines(snap: &Snapshot) -> Vec<Line> {
             lines.push(Line::PathInfo {
                 path: v.path.to_str().unwrap().to_owned(),
                 op: v.op.to_string(),
+                // @TODO: Fix this
+                delim: None,
+                extra: None,
             });
         }
         lines.push(Line::Blank);
@@ -160,7 +217,13 @@ pub fn parse(str_lines: Vec<String>) -> Result<Snapshot, AppError> {
             Ok(Line::Checksum(hash)) => {
                 curr_group = str_to_digest(hash.as_str()).ok();
             }
-            Ok(Line::PathInfo { path, op }) => {
+            Ok(Line::PathInfo {
+                path,
+                op,
+                delim: _,
+                extra: _,
+            }) => {
+                // @TODO: Use delim and extra here
                 let group = curr_group.unwrap();
                 let filepath = FilePath {
                     path: PathBuf::from(path),
@@ -289,32 +352,71 @@ mod tests {
 
     #[test]
     fn test_line_decode_pathinfo() {
+        // keep
         let x = Line::decode(&"keep /foo/bar/1.txt".to_owned());
         assert!(x.is_ok());
         assert_eq!(
             Line::PathInfo {
                 path: "/foo/bar/1.txt".to_owned(),
                 op: "keep".to_owned(),
+                delim: None,
+                extra: None,
             },
             x.unwrap()
         );
 
+        // symlink
         let y = Line::decode(&"symlink /foo/bar/1.txt".to_owned());
         assert!(y.is_ok());
         assert_eq!(
             Line::PathInfo {
                 path: "/foo/bar/1.txt".to_owned(),
                 op: "symlink".to_owned(),
+                delim: Some("->".to_owned()),
+                extra: None,
             },
             y.unwrap()
         );
 
+        let y = Line::decode(&"symlink /foo/bar/1.txt -> /foo/cat/1.txt".to_owned());
+        assert!(y.is_ok());
+        assert_eq!(
+            Line::PathInfo {
+                path: "/foo/bar/1.txt".to_owned(),
+                op: "symlink".to_owned(),
+                delim: Some("->".to_owned()),
+                extra: Some("/foo/cat/1.txt".to_owned()),
+            },
+            y.unwrap()
+        );
+
+        let y = Line::decode(&"symlink /foo/bar/1.txt ->".to_owned());
+        assert!(y.is_ok());
+        assert_eq!(
+            Line::PathInfo {
+                path: "/foo/bar/1.txt".to_owned(),
+                op: "symlink".to_owned(),
+                delim: Some("->".to_owned()),
+                extra: None,
+            },
+            y.unwrap()
+        );
+
+        match Line::decode(&"symlink /foo/bar/1.txt -> /cat/1.txt -> /dog/2.txt".to_owned()) {
+            Err(AppError::SnapshotParsing) => assert!(true),
+            Err(_) => assert!(false),
+            Ok(_) => assert!(false),
+        }
+
+        // delete
         let z = Line::decode(&"delete /foo/bar/1.txt".to_owned());
         assert!(z.is_ok());
         assert_eq!(
             Line::PathInfo {
                 path: "/foo/bar/1.txt".to_owned(),
                 op: "delete".to_owned(),
+                delim: None,
+                extra: None,
             },
             z.unwrap()
         );
