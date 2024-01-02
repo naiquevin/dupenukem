@@ -32,6 +32,15 @@ fn validate_rootdir(path: &PathBuf) -> Result<(), Error> {
     }
 }
 
+/// A "keeper" is a FilePath that's marked as 'keep'. There's a global
+/// assumption in this app that in a valid snapshot, every group (of
+/// duplicates) must have at least 1 path marked as 'keep'
+fn find_keeper(filepaths: &Vec<FilePath>) -> Option<&FilePath> {
+    filepaths
+        .iter()
+        .find(|filepath| filepath.op == FileOp::Keep)
+}
+
 fn validate_group(hash: &Digest, filepaths: &Vec<FilePath>) -> Result<(), Error> {
     let n = filepaths.len();
     if n <= 1 {
@@ -41,10 +50,7 @@ fn validate_group(hash: &Digest, filepaths: &Vec<FilePath>) -> Result<(), Error>
         )));
     }
 
-    match filepaths
-        .iter()
-        .find(|filepath| filepath.op == FileOp::Keep)
-    {
+    match find_keeper(filepaths) {
         Some(_) => Ok(()),
         None => Err(Error::OpNotAllowed(format!(
             "Group must contain at least 1 path marked 'keep'. None found for {:x}",
@@ -76,17 +82,39 @@ fn partially_validate_path_to_keep(filepath: &FilePath) -> Result<Action, Error>
     }
 }
 
-fn partially_validate_path_to_symlink<'a>(filepath: &'a FilePath) -> Result<Action<'a>, Error> {
+fn partially_validate_path_to_symlink<'a>(
+    filepath: &'a FilePath,
+    source: Option<&PathBuf>,
+    _default_source: &PathBuf,
+) -> Result<Action<'a>, Error> {
     let path = &filepath.path;
     if path.is_symlink() {
         // Path is a symlink but the action to take depends on whether
         // it can be resolved or not (broken).
         match path.canonicalize() {
-            // If the symlink is valid, it's a no-op
-            Ok(_) => Ok(Action {
-                filepath,
-                is_no_op: true,
-            }),
+            // If the symlink is valid, we further check whether the
+            // source path it resolves to matches the source (if
+            // provided). If yes, it's a no-op. If not, it's an error
+            // (operation not allowed)
+            Ok(src_path) => {
+                // @TODO: The case where source is None needs to be
+                // handled by falling back to default source
+                if source.is_none() || source.is_some_and(|p| *p == src_path) {
+                    Ok(Action {
+                        filepath,
+                        is_no_op: true,
+                    })
+                } else {
+                    Err(Error::OpNotAllowed(format!(
+                        "Specified symlink source path {} doesn't match the actual source path {}",
+                        // Use of `unwrap` is acceptable here because
+                        // the case of `source` being None is handled
+                        // in the if clause.
+                        source.unwrap().display(),
+                        src_path.display(),
+                    )))
+                }
+            }
             // If it's a broken symlink, it can just be fixed
             Err(_) => Ok(Action {
                 filepath,
@@ -127,6 +155,7 @@ fn validate_path<'a>(
     rootdir: &PathBuf,
     hash: &Digest,
     filepath: &'a FilePath,
+    keeper: &FilePath,
 ) -> Result<Action<'a>, Error> {
     let path = &filepath.path;
 
@@ -139,9 +168,11 @@ fn validate_path<'a>(
         )));
     }
 
-    let action = match filepath.op {
+    let action = match &filepath.op {
         FileOp::Keep => partially_validate_path_to_keep(filepath)?,
-        FileOp::Symlink => partially_validate_path_to_symlink(filepath)?,
+        FileOp::Symlink { source } => {
+            partially_validate_path_to_symlink(filepath, source.as_ref(), &keeper.path)?
+        }
         FileOp::Delete => partially_validate_path_to_delete(filepath)?,
     };
 
@@ -169,8 +200,10 @@ pub fn validate(snap: &Snapshot) -> Result<Vec<Action>, Error> {
             return Err(e);
         }
 
+        let keeper = find_keeper(filepaths).unwrap();
+
         for filepath in filepaths.iter() {
-            match validate_path(&snap.rootdir, hash, filepath) {
+            match validate_path(&snap.rootdir, hash, filepath, keeper) {
                 Ok(action) => actions.push(action),
                 Err(e) => return Err(e),
             }

@@ -171,7 +171,7 @@ fn render_lines(snap: &Snapshot) -> Vec<Line> {
         for v in vs {
             lines.push(Line::PathInfo {
                 path: v.path.to_str().unwrap().to_owned(),
-                op: v.op.to_string(),
+                op: v.op.keyword().to_owned(),
                 // @TODO: Fix this
                 delim: None,
                 extra: None,
@@ -221,13 +221,12 @@ pub fn parse(str_lines: Vec<String>) -> Result<Snapshot, AppError> {
                 path,
                 op,
                 delim: _,
-                extra: _,
+                extra,
             }) => {
-                // @TODO: Use delim and extra here
                 let group = curr_group.unwrap();
                 let filepath = FilePath {
                     path: PathBuf::from(path),
-                    op: FileOp::decode(op.as_str()).unwrap(),
+                    op: FileOp::decode(op.as_str(), extra.as_ref().map(|s| s.as_str())).unwrap(),
                 };
                 if let Some(fps) = duplicates.get_mut(&group) {
                     fps.push(filepath);
@@ -454,7 +453,7 @@ mod tests {
         if let Some(fps) = snap.duplicates.get(&d1) {
             assert_eq!(3, fps.len());
             // 1st filepath
-            assert_eq!(FileOp::Symlink, fps[0].op);
+            assert_eq!(FileOp::Symlink { source: None }, fps[0].op);
             assert_eq!(
                 "/foo/bar/1.txt".to_owned(),
                 fps[0].path.display().to_string()

@@ -3,7 +3,6 @@ use crate::fileutil::{find_duplicates, traverse_bfs};
 use chrono::{DateTime, FixedOffset, Local};
 use md5::Digest;
 use std::collections::{HashMap, HashSet};
-use std::fmt;
 use std::io;
 use std::path::PathBuf;
 
@@ -14,30 +13,29 @@ pub mod validation;
 #[derive(Debug, PartialEq, Eq)]
 enum FileOp {
     Keep,
-    Symlink,
+    Symlink { source: Option<PathBuf> },
     Delete,
 }
 
 impl FileOp {
-    fn decode(s: &str) -> Option<Self> {
-        match s {
+    fn decode(keyword: &str, extra: Option<&str>) -> Option<Self> {
+        match keyword {
             "keep" => Some(Self::Keep),
-            "symlink" => Some(Self::Symlink),
+            "symlink" => Some(Self::Symlink {
+                source: extra.map(PathBuf::from),
+            }),
             "delete" => Some(Self::Delete),
             // @TODO: Throw an error here
             _ => None,
         }
     }
-}
 
-impl fmt::Display for FileOp {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        let c = match self {
+    fn keyword(&self) -> &str {
+        match self {
             Self::Keep => "keep",
-            Self::Symlink => "symlink",
+            Self::Symlink { source: _ } => "symlink",
             Self::Delete => "delete",
-        };
-        write!(f, "{}", c)
+        }
     }
 }
 
@@ -50,7 +48,11 @@ pub struct FilePath {
 impl FilePath {
     fn new(path: &PathBuf) -> FilePath {
         let op = if path.is_symlink() {
-            FileOp::Symlink
+            // @NOTE: Here we're not handling the case where
+            // `canonicalize` returns an Err
+            FileOp::Symlink {
+                source: path.canonicalize().ok(),
+            }
         } else {
             FileOp::Keep
         };
@@ -108,11 +110,14 @@ impl<'a> Action<'a> {
         if self.is_no_op {
             res.push_str("[NO-OP] ");
         }
-        let msg = match self.filepath.op {
+        let msg = match &self.filepath.op {
             FileOp::Keep => return None,
-            FileOp::Symlink => format!(
-                "Replacing file with symlink: {}",
-                self.filepath.path.display()
+            FileOp::Symlink { source } => format!(
+                "Replacing file with symlink: {} -> {}",
+                self.filepath.path.display(),
+                // Here we're assuming that the source will never be
+                // None
+                source.as_ref().unwrap().display(),
             ),
             FileOp::Delete => format!("Deleting file: {}", self.filepath.path.display()),
         };
