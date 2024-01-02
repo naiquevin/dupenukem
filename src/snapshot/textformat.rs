@@ -144,6 +144,31 @@ impl Line {
             None => Ok(Self::Blank),
         }
     }
+
+    // Constructor of sorts to create PathInfo variant from a
+    // `FilePath` instance
+    fn pathinfo(filepath: &FilePath) -> Self {
+        let path = filepath.path.to_str().unwrap().to_owned();
+        let op = filepath.op.keyword().to_owned();
+        match &filepath.op {
+            FileOp::Symlink { source } => {
+                let delim = Some(String::from("->"));
+                let extra = source.as_ref().map(|s| s.display().to_string());
+                Line::PathInfo {
+                    path,
+                    op,
+                    delim,
+                    extra,
+                }
+            }
+            FileOp::Keep | FileOp::Delete => Line::PathInfo {
+                path,
+                op,
+                delim: None,
+                extra: None,
+            },
+        }
+    }
 }
 
 fn render_lines(snap: &Snapshot) -> Vec<Line> {
@@ -169,13 +194,7 @@ fn render_lines(snap: &Snapshot) -> Vec<Line> {
     for (k, vs) in snap.duplicates.iter() {
         lines.push(Line::Checksum(format!("{:x}", k)));
         for v in vs {
-            lines.push(Line::PathInfo {
-                path: v.path.to_str().unwrap().to_owned(),
-                op: v.op.keyword().to_owned(),
-                // @TODO: Fix this
-                delim: None,
-                extra: None,
-            });
+            lines.push(Line::pathinfo(v));
         }
         lines.push(Line::Blank);
     }
@@ -426,6 +445,70 @@ mod tests {
             Err(_) => assert!(false),
             Ok(_) => assert!(false),
         }
+    }
+
+    #[test]
+    fn test_line_pathinfo() {
+        // Symlink with extra
+        let t = PathBuf::from("/bar/1.txt");
+        let s = PathBuf::from("/foo/1.txt");
+        let op = FileOp::Symlink { source: Some(s) };
+        let fp = FilePath { path: t, op };
+        let line = Line::pathinfo(&fp);
+        assert_eq!(
+            Line::PathInfo {
+                path: "/bar/1.txt".to_owned(),
+                op: "symlink".to_owned(),
+                delim: Some("->".to_owned()),
+                extra: Some("/foo/1.txt".to_owned()),
+            },
+            line
+        );
+
+        // Symlink without extra
+        let path = PathBuf::from("/foo/1.txt");
+        let op = FileOp::Symlink { source: None };
+        let fp = FilePath { path, op };
+        let line = Line::pathinfo(&fp);
+        assert_eq!(
+            Line::PathInfo {
+                path: "/foo/1.txt".to_owned(),
+                op: "symlink".to_owned(),
+                delim: Some("->".to_owned()),
+                extra: None,
+            },
+            line
+        );
+
+        // Keep
+        let path = PathBuf::from("/foo/1.txt");
+        let op = FileOp::Keep;
+        let fp = FilePath { path, op };
+        let line = Line::pathinfo(&fp);
+        assert_eq!(
+            Line::PathInfo {
+                path: "/foo/1.txt".to_owned(),
+                op: "keep".to_owned(),
+                delim: None,
+                extra: None,
+            },
+            line
+        );
+
+        // Delete
+        let path = PathBuf::from("/foo/1.txt");
+        let op = FileOp::Delete;
+        let fp = FilePath { path, op };
+        let line = Line::pathinfo(&fp);
+        assert_eq!(
+            Line::PathInfo {
+                path: "/foo/1.txt".to_owned(),
+                op: "delete".to_owned(),
+                delim: None,
+                extra: None,
+            },
+            line
+        );
     }
 
     // Tests for `parse` method
