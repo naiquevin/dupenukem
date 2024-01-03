@@ -9,4 +9,8 @@ mkdir $rootdir
 
 cd $1
 
+export FF_ROOTDIR=$rootdir
+
 bash $script
+
+tree $rootdir
