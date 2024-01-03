@@ -1,5 +1,5 @@
 use crate::error::AppError;
-use crate::fileutil::{find_duplicates, traverse_bfs};
+use crate::scanner::{find_duplicates, traverse_bfs};
 use chrono::{DateTime, FixedOffset, Local};
 use md5::Digest;
 use std::collections::{HashMap, HashSet};

@@ -9,6 +9,7 @@ use std::process;
 mod error;
 mod fileutil;
 mod ioutil;
+mod scanner;
 mod snapshot;
 
 #[derive(Subcommand)]
