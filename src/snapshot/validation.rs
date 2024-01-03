@@ -69,10 +69,7 @@ fn partially_validate_path_to_keep(filepath: &FilePath) -> Result<Action, Error>
         )))
     } else if path.is_file() {
         // Path is a regular file
-        Ok(Action {
-            filepath,
-            is_no_op: true,
-        })
+        Ok(Action::Keep(&filepath.path))
     } else {
         // Path doesn't exist
         Err(Error::OpNotPossible(format!(
@@ -84,47 +81,45 @@ fn partially_validate_path_to_keep(filepath: &FilePath) -> Result<Action, Error>
 
 fn partially_validate_path_to_symlink<'a>(
     filepath: &'a FilePath,
-    source: Option<&PathBuf>,
-    _default_source: &PathBuf,
+    source: Option<&'a PathBuf>,
+    default_source: &'a PathBuf,
 ) -> Result<Action<'a>, Error> {
     let path = &filepath.path;
+    let intended_src_path = source.unwrap_or(default_source);
     if path.is_symlink() {
         // Path is a symlink but the action to take depends on whether
         // it can be resolved or not (broken).
         match path.canonicalize() {
             // If the symlink is valid, we further check whether the
-            // source path it resolves to matches the source (if
-            // provided). If yes, it's a no-op. If not, it's an error
-            // (operation not allowed)
-            Ok(src_path) => {
-                // @TODO: The case where source is None needs to be
-                // handled by falling back to default source
-                if source.is_none() || source.is_some_and(|p| *p == src_path) {
-                    Ok(Action {
-                        filepath,
+            // source path it resolves to matches the intended source
+            // path derived above. If yes, it's a no-op. If not, it's
+            // an error (operation not allowed)
+            Ok(actual_src_path) => {
+                if *intended_src_path == actual_src_path {
+                    Ok(Action::Symlink {
+                        path: &filepath.path,
+                        source: intended_src_path,
                         is_no_op: true,
                     })
                 } else {
                     Err(Error::OpNotAllowed(format!(
                         "Specified symlink source path {} doesn't match the actual source path {}",
-                        // Use of `unwrap` is acceptable here because
-                        // the case of `source` being None is handled
-                        // in the if clause.
-                        source.unwrap().display(),
-                        src_path.display(),
+                        intended_src_path.display(),
+                        actual_src_path.display(),
                     )))
                 }
             }
             // If it's a broken symlink, it can just be fixed
-            Err(_) => Ok(Action {
-                filepath,
+            Err(_) => Ok(Action::Symlink {
+                path: &filepath.path,
+                source: intended_src_path,
                 is_no_op: false,
             }),
         }
     } else if filepath.path.is_file() {
-        // Path is a regular file
-        Ok(Action {
-            filepath,
+        Ok(Action::Symlink {
+            path: &filepath.path,
+            source: intended_src_path,
             is_no_op: false,
         })
     } else {
@@ -140,8 +135,8 @@ fn partially_validate_path_to_delete<'a>(filepath: &'a FilePath) -> Result<Actio
     let path = &filepath.path;
     // Check if the path exists and can be resolved if it's a symlink
     match path.canonicalize() {
-        Ok(_) => Ok(Action {
-            filepath,
+        Ok(_) => Ok(Action::Delete {
+            path: &filepath.path,
             is_no_op: false,
         }),
         Err(_) => Err(Error::OpNotAllowed(format!(
@@ -155,7 +150,7 @@ fn validate_path<'a>(
     rootdir: &PathBuf,
     hash: &Digest,
     filepath: &'a FilePath,
-    keeper: &FilePath,
+    keeper: &'a FilePath,
 ) -> Result<Action<'a>, Error> {
     let path = &filepath.path;
 
@@ -176,7 +171,7 @@ fn validate_path<'a>(
         FileOp::Delete => partially_validate_path_to_delete(filepath)?,
     };
 
-    let computed_hash = fileutil::file_contents_as_md5(&action.filepath.path).map_err(Error::Io)?;
+    let computed_hash = fileutil::file_contents_as_md5(&filepath.path).map_err(Error::Io)?;
 
     if computed_hash == *hash {
         Ok(action)
@@ -200,6 +195,9 @@ pub fn validate(snap: &Snapshot) -> Result<Vec<Action>, Error> {
             return Err(e);
         }
 
+        // As the call to `validate_group` must have validated that
+        // there's at least one 'keep' entry, there's no need to
+        // handle None value.
         let keeper = find_keeper(filepaths).unwrap();
 
         for filepath in filepaths.iter() {
