@@ -1,4 +1,5 @@
-use super::{Action, FileOp, FilePath, Snapshot};
+use super::{FileOp, FilePath, Snapshot};
+use crate::executor::Action;
 use crate::fileutil;
 use md5::Digest;
 use std::io;

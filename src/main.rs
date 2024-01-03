@@ -7,6 +7,7 @@ use std::path::PathBuf;
 use std::process;
 
 mod error;
+mod executor;
 mod fileutil;
 mod ioutil;
 mod scanner;
