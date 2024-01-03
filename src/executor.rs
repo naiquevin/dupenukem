@@ -1,4 +1,6 @@
+use crate::error::AppError;
 use std::path::PathBuf;
+use log::info;
 
 #[derive(Debug)]
 pub enum Action<'a> {
@@ -55,4 +57,14 @@ impl<'a> Action<'a> {
             }
         }
     }
+}
+
+pub fn execute(actions: Vec<Action>) -> Result<(), AppError> {
+    for action in actions {
+        let dry_run = true;
+        if let Some(msg) = action.log(&dry_run) {
+            info!("{}", msg);
+        }
+    }
+    Ok(())
 }

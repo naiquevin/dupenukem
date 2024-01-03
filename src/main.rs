@@ -1,5 +1,5 @@
 use crate::error::AppError;
-use crate::snapshot::{execution, textformat, Snapshot};
+use crate::snapshot::{textformat, Snapshot};
 use clap::{self, Parser, Subcommand};
 use log::info;
 use std::collections::HashSet;
@@ -105,7 +105,7 @@ fn cmd_validate(snapshot_path: Option<&PathBuf>, stdin: &bool) -> Result<(), App
 fn cmd_apply(snapshot_path: Option<&PathBuf>, stdin: &bool) -> Result<(), AppError> {
     let input = read_input(snapshot_path, stdin)?;
     let snapshot = textformat::parse(input)?;
-    snapshot.validate().and_then(execution::execute)
+    snapshot.validate().and_then(executor::execute)
 }
 
 impl Cli {

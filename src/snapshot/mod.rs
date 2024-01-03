@@ -7,7 +7,6 @@ use std::collections::{HashMap, HashSet};
 use std::io;
 use std::path::PathBuf;
 
-pub mod execution;
 pub mod textformat;
 pub mod validation;
 
