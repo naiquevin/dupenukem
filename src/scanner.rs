@@ -11,7 +11,7 @@ use std::path::{Path, PathBuf};
 ///
 /// Optionally, a hashset of `PathBuf` refs can be passed as the
 /// `excludes` arg. These paths will be excluded during traversal.
-pub fn traverse_bfs(
+fn traverse_bfs(
     dirpath: &Path,
     excludes: Option<&HashSet<PathBuf>>,
 ) -> io::Result<Vec<PathBuf>> {
@@ -151,7 +151,7 @@ fn confirm_dups(
     Ok(res)
 }
 
-pub fn find_duplicates<'a>(
+fn group_duplicates<'a>(
     rootdir: &Path,
     paths: &'a Vec<PathBuf>,
     quick: &bool,
@@ -167,4 +167,21 @@ pub fn find_duplicates<'a>(
     } else {
         Ok(dups)
     }
+}
+
+pub fn scan(
+    rootdir: &Path,
+    excludes: Option<&HashSet<PathBuf>>,
+    quick: &bool,
+) -> io::Result<HashMap<Digest, Vec<PathBuf>>> {
+    let paths = traverse_bfs(rootdir, excludes)?;
+    let duplicates = group_duplicates(rootdir, &paths, quick)?
+        .into_iter()
+        // `group_duplicates` internally deals with PathBuf references
+        // and hence returns `Vec<&PathBuf>`. So here we need to
+        // create new PathBuf instances to be able to return them
+        // outside the function
+        .map(|(d, ps)| (d, ps.iter().map(|p| p.to_path_buf()).collect()))
+        .collect::<HashMap<Digest, Vec<PathBuf>>>();
+    Ok(duplicates)
 }

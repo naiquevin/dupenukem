@@ -1,5 +1,5 @@
 use crate::error::AppError;
-use crate::scanner::{find_duplicates, traverse_bfs};
+use crate::scanner::scan;
 use chrono::{DateTime, FixedOffset, Local};
 use md5::Digest;
 use std::collections::{HashMap, HashSet};
@@ -46,7 +46,7 @@ pub struct FilePath {
 }
 
 impl FilePath {
-    fn new(path: &PathBuf) -> FilePath {
+    fn new(path: PathBuf) -> FilePath {
         let op = if path.is_symlink() {
             // @NOTE: Here we're not handling the case where
             // `canonicalize` returns an Err
@@ -56,11 +56,7 @@ impl FilePath {
         } else {
             FileOp::Keep
         };
-        FilePath {
-            // @NOTE: This is equivalent to cloning
-            path: path.to_path_buf(),
-            op,
-        }
+        FilePath { path, op }
     }
 }
 
@@ -76,8 +72,7 @@ impl Snapshot {
         excludes: Option<&HashSet<PathBuf>>,
         quick: &bool,
     ) -> io::Result<Snapshot> {
-        let paths = traverse_bfs(rootdir, excludes)?;
-        let duplicates = find_duplicates(rootdir, &paths, quick)?
+        let duplicates = scan(rootdir, excludes, quick)?
             .into_iter()
             .map(|(d, ps)| (d, ps.into_iter().map(FilePath::new).collect()))
             .collect::<HashMap<Digest, Vec<FilePath>>>();
