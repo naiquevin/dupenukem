@@ -11,10 +11,7 @@ use std::path::{Path, PathBuf};
 ///
 /// Optionally, a hashset of `PathBuf` refs can be passed as the
 /// `excludes` arg. These paths will be excluded during traversal.
-fn traverse_bfs(
-    dirpath: &Path,
-    excludes: Option<&HashSet<PathBuf>>,
-) -> io::Result<Vec<PathBuf>> {
+fn traverse_bfs(dirpath: &Path, excludes: Option<&HashSet<PathBuf>>) -> io::Result<Vec<PathBuf>> {
     let mut queue: VecDeque<PathBuf> = VecDeque::new();
     let mut result: Vec<PathBuf> = Vec::new();
     queue.push_back(dirpath.to_path_buf());
