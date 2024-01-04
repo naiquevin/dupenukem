@@ -93,12 +93,19 @@ fn cmd_validate(snapshot_path: Option<&PathBuf>, stdin: &bool) -> Result<(), App
     let snapshot = textformat::parse(input)?;
     match snapshot.validate() {
         Ok(actions) => {
-            for action in actions {
-                println!("{:?}", action);
+            println!("Snapshot is valid!");
+            let num_pending = executor::pending_actions(&actions).len();
+            if num_pending == 0 {
+                println!("No pending actions");
+            } else {
+                println!("No. of pending action(s): {}", num_pending);
             }
             Ok(())
         }
-        Err(e) => Err(e),
+        Err(e) => {
+            println!("Snapshot is invalid!");
+            Err(e)
+        },
     }
 }
 

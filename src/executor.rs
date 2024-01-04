@@ -1,6 +1,6 @@
 use crate::error::AppError;
-use std::path::PathBuf;
 use log::info;
+use std::path::PathBuf;
 
 #[derive(Debug)]
 pub enum Action<'a> {
@@ -57,6 +57,21 @@ impl<'a> Action<'a> {
             }
         }
     }
+}
+
+pub fn pending_actions<'a>(actions: &'a Vec<Action>) -> Vec<&'a Action<'a>> {
+    actions
+        .iter()
+        .filter(|action| match action {
+            Action::Keep(_) => return false,
+            Action::Symlink {
+                is_no_op,
+                path: _,
+                source: _,
+            } => !is_no_op,
+            Action::Delete { is_no_op, path: _ } => !is_no_op,
+        })
+        .collect::<Vec<&Action>>()
 }
 
 pub fn execute(actions: Vec<Action>) -> Result<(), AppError> {
