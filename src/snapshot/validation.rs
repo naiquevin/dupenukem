@@ -104,9 +104,8 @@ fn partially_validate_path_to_symlink<'a>(
                     })
                 } else {
                     Err(Error::OpNotAllowed(format!(
-                        "Specified symlink source path {} doesn't match the actual source path {}",
-                        intended_src_path.display(),
-                        actual_src_path.display(),
+                        "Updation of symlink source path is not supported: {}",
+                        path.display(),
                     )))
                 }
             }
