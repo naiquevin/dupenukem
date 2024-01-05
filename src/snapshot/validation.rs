@@ -1,7 +1,6 @@
 use super::{FileOp, FilePath, Snapshot};
 use crate::executor::Action;
 use crate::fileutil;
-use md5::Digest;
 use std::io;
 use std::path::PathBuf;
 
@@ -42,7 +41,7 @@ fn find_keeper(filepaths: &Vec<FilePath>) -> Option<&FilePath> {
         .find(|filepath| filepath.op == FileOp::Keep)
 }
 
-fn validate_group(hash: &Digest, filepaths: &Vec<FilePath>) -> Result<(), Error> {
+fn validate_group(hash: &u64, filepaths: &Vec<FilePath>) -> Result<(), Error> {
     let n = filepaths.len();
     if n <= 1 {
         return Err(Error::CorruptSnapshot(format!(
@@ -148,7 +147,7 @@ fn partially_validate_path_to_delete<'a>(filepath: &'a FilePath) -> Result<Actio
 
 fn validate_path<'a>(
     rootdir: &PathBuf,
-    hash: &Digest,
+    hash: &u64,
     filepath: &'a FilePath,
     keeper: &'a FilePath,
 ) -> Result<Action<'a>, Error> {
@@ -171,7 +170,7 @@ fn validate_path<'a>(
         FileOp::Delete => partially_validate_path_to_delete(filepath)?,
     };
 
-    let computed_hash = fileutil::file_contents_as_md5(&filepath.path).map_err(Error::Io)?;
+    let computed_hash = fileutil::file_contents_as_xxh3_64(&filepath.path).map_err(Error::Io)?;
 
     if computed_hash == *hash {
         Ok(action)

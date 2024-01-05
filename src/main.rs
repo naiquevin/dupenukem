@@ -22,7 +22,7 @@ enum Command {
         #[arg(
             long,
             default_value_t = false,
-            help = "Quick mode in which sha256 comparison is skipped and only md5 hashes are compared instead"
+            help = "Quick mode in which sha256 comparison is skipped and only xxhash3(64) hashes are compared instead"
         )]
         quick: bool,
         rootdir: PathBuf,

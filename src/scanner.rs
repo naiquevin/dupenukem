@@ -1,6 +1,5 @@
 use crate::fileutil;
 use log::warn;
-use md5::{self, Digest};
 use std::collections::{HashMap, HashSet, VecDeque};
 use std::fs;
 use std::io;
@@ -114,10 +113,10 @@ fn possible_duplicates(paths: Vec<&PathBuf>) -> io::Result<Vec<&PathBuf>> {
     Ok(res)
 }
 
-fn group_dups_by_md5(paths: Vec<&PathBuf>) -> io::Result<HashMap<Digest, Vec<&PathBuf>>> {
-    let mut res: HashMap<Digest, Vec<&PathBuf>> = HashMap::new();
+fn group_dups_by_xxh3(paths: Vec<&PathBuf>) -> io::Result<HashMap<u64, Vec<&PathBuf>>> {
+    let mut res: HashMap<u64, Vec<&PathBuf>> = HashMap::new();
     for path in paths {
-        let hash = fileutil::file_contents_as_md5(&path)?;
+        let hash = fileutil::file_contents_as_xxh3_64(&path)?;
         match res.get_mut(&hash) {
             None => {
                 res.insert(hash, vec![path]);
@@ -131,18 +130,16 @@ fn group_dups_by_md5(paths: Vec<&PathBuf>) -> io::Result<HashMap<Digest, Vec<&Pa
     Ok(res)
 }
 
-fn confirm_dups(
-    dups: HashMap<Digest, Vec<&PathBuf>>,
-) -> io::Result<HashMap<Digest, Vec<&PathBuf>>> {
-    let mut res: HashMap<Digest, Vec<&PathBuf>> = HashMap::new();
-    for (md5hash, paths) in dups {
+fn confirm_dups(dups: HashMap<u64, Vec<&PathBuf>>) -> io::Result<HashMap<u64, Vec<&PathBuf>>> {
+    let mut res: HashMap<u64, Vec<&PathBuf>> = HashMap::new();
+    for (hash, paths) in dups {
         let sha256hashes = paths
             .iter()
             .map(fileutil::file_contents_as_sha256)
             .map(|x| x.unwrap())
             .collect::<HashSet<String>>();
         if sha256hashes.len() == 1 {
-            res.insert(md5hash, paths);
+            res.insert(hash, paths);
         }
     }
     Ok(res)
@@ -152,13 +149,13 @@ fn group_duplicates<'a>(
     rootdir: &Path,
     paths: &'a Vec<PathBuf>,
     quick: &bool,
-) -> io::Result<HashMap<Digest, Vec<&'a PathBuf>>> {
+) -> io::Result<HashMap<u64, Vec<&'a PathBuf>>> {
     let valid_paths = paths
         .iter()
         .filter(|p| is_path_valid(rootdir, p))
         .collect::<Vec<&PathBuf>>();
     let poss_dups = possible_duplicates(valid_paths)?;
-    let dups = group_dups_by_md5(poss_dups)?;
+    let dups = group_dups_by_xxh3(poss_dups)?;
     if *quick {
         confirm_dups(dups)
     } else {
@@ -170,7 +167,7 @@ pub fn scan(
     rootdir: &Path,
     excludes: Option<&HashSet<PathBuf>>,
     quick: &bool,
-) -> io::Result<HashMap<Digest, Vec<PathBuf>>> {
+) -> io::Result<HashMap<u64, Vec<PathBuf>>> {
     let paths = traverse_bfs(rootdir, excludes)?;
     let duplicates = group_duplicates(rootdir, &paths, quick)?
         .into_iter()
@@ -179,6 +176,6 @@ pub fn scan(
         // create new PathBuf instances to be able to return them
         // outside the function
         .map(|(d, ps)| (d, ps.iter().map(|p| p.to_path_buf()).collect()))
-        .collect::<HashMap<Digest, Vec<PathBuf>>>();
+        .collect::<HashMap<u64, Vec<PathBuf>>>();
     Ok(duplicates)
 }

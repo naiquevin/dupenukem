@@ -1,8 +1,8 @@
-use md5::{self, Digest};
 use sha2::{Digest as Sha2Digest, Sha256};
 use std::fs;
 use std::io::{self, Read};
 use std::path::{Path, PathBuf};
+use xxhash_rust::xxh3;
 
 /*
 
@@ -25,9 +25,10 @@ fn file_contents_as_bytes<P: AsRef<Path>>(path: P) -> io::Result<Vec<u8>> {
     Ok(buf)
 }
 
-pub fn file_contents_as_md5<P: AsRef<Path>>(path: &P) -> io::Result<Digest> {
+pub fn file_contents_as_xxh3_64<P: AsRef<Path>>(path: &P) -> io::Result<u64> {
     let data = file_contents_as_bytes(path)?;
-    Ok(md5::compute(data))
+    let result = xxh3::xxh3_64(&data);
+    Ok(result)
 }
 
 pub fn file_contents_as_sha256<P: AsRef<Path>>(path: &P) -> io::Result<String> {

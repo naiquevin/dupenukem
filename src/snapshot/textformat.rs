@@ -1,10 +1,9 @@
 use super::{FileOp, FilePath, Snapshot};
 use crate::error::AppError;
 use chrono::{DateTime, FixedOffset};
-use hex::{self, FromHexError};
-use md5::Digest;
 use regex::Regex;
 use std::collections::HashMap;
+use std::num::ParseIntError;
 use std::path::PathBuf;
 
 #[derive(Debug, Eq, PartialEq)]
@@ -192,7 +191,7 @@ fn render_lines(snap: &Snapshot) -> Vec<Line> {
     lines.push(Line::Blank);
 
     for (k, vs) in snap.duplicates.iter() {
-        lines.push(Line::Checksum(format!("{:x}", k)));
+        lines.push(Line::Checksum(format!("{}", k)));
         for v in vs {
             lines.push(Line::pathinfo(v));
         }
@@ -210,18 +209,16 @@ pub fn render(snap: &Snapshot) -> Vec<String> {
     result
 }
 
-fn str_to_digest(s: &str) -> Result<Digest, FromHexError> {
-    let mut bytea = [0u8; 16];
-    hex::decode_to_slice(s, &mut bytea)?;
-    Ok(Digest(bytea))
+fn str_to_hash(s: &str) -> Result<u64, ParseIntError> {
+    s.parse::<u64>()
 }
 
 pub fn parse(str_lines: Vec<String>) -> Result<Snapshot, AppError> {
     let lines = str_lines.iter().map(Line::decode);
     let mut rootdir: Option<PathBuf> = None;
     let mut generated_at: Option<DateTime<FixedOffset>> = None;
-    let mut curr_group: Option<Digest> = None;
-    let mut duplicates: HashMap<Digest, Vec<FilePath>> = HashMap::new();
+    let mut curr_group: Option<u64> = None;
+    let mut duplicates: HashMap<u64, Vec<FilePath>> = HashMap::new();
     for line in lines {
         match &line {
             Ok(Line::Comment(_)) => continue,
@@ -234,7 +231,7 @@ pub fn parse(str_lines: Vec<String>) -> Result<Snapshot, AppError> {
                 }
             }
             Ok(Line::Checksum(hash)) => {
-                curr_group = str_to_digest(hash.as_str()).ok();
+                curr_group = str_to_hash(hash.as_str()).ok();
             }
             Ok(Line::PathInfo {
                 path,
@@ -519,12 +516,12 @@ mod tests {
             "#! Root Directory: /foo",
             "#! Generated at: Tue, 12 Dec 2023 16:00:44 +0530",
             "",
-            "[fd2dd43f6cd0565ed876ca1ac2dfc708]",
+            "[937219074347857651]",
             "symlink /foo/bar/1.txt",
             "keep /foo/1.txt",
             "delete /foo/bar/1_copy.txt",
             "",
-            "[b2c7374428473edcfd949a6fd3bbe7d1]",
+            "[8183168229739997842]",
             "keep /foo/2.txt",
             "symlink /foo/bar/2.txt",
         ];
@@ -532,7 +529,7 @@ mod tests {
         let snap: Snapshot = parse(lines).unwrap();
         assert_eq!(PathBuf::from("/foo"), snap.rootdir);
 
-        let d1 = str_to_digest("fd2dd43f6cd0565ed876ca1ac2dfc708").unwrap();
+        let d1 = str_to_hash("937219074347857651").unwrap();
         if let Some(fps) = snap.duplicates.get(&d1) {
             assert_eq!(3, fps.len());
             // 1st filepath
@@ -556,7 +553,7 @@ mod tests {
             assert!(false);
         }
 
-        let d2 = str_to_digest("b2c7374428473edcfd949a6fd3bbe7d1").unwrap();
+        let d2 = str_to_hash("8183168229739997842").unwrap();
         if let Some(fps) = snap.duplicates.get(&d2) {
             assert_eq!(2, fps.len());
         }
