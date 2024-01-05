@@ -7,4 +7,5 @@ pub enum AppError {
     SnapshotValidation(validation::Error),
     Cmd(String),
     Io(io::Error),
+    Fs(String),
 }
