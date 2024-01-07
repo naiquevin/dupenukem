@@ -101,6 +101,12 @@ fn take_backup(
 /// The deletion is performed using `std::fs::remove_file`, hence it
 /// works for symlinks too i.e. if `path` is a symlink, only the link
 /// will be removed and the source path will not be affected.
+///
+/// # Errors
+/// This function will return an `Err` in the following situations:
+///   - If there's an error while taking backup
+///   - If there is an error while deleting the file
+///
 #[allow(dead_code)]
 pub fn delete_file(
     path: &PathBuf,
@@ -112,6 +118,32 @@ pub fn delete_file(
     }
     fs::remove_file(path).map_err(AppError::Io)?;
     Ok(())
+}
+
+/// Replaces the file located at `path` with a symlink to
+/// `source_path`, while optionally taking backup of the regular file
+/// located at `path`
+///
+/// Backup is optional, which is why the `backup_dir` arg is an
+/// Option. Backup will be taken only if it's a `Some`.
+///
+/// # Errors
+/// This function will return an `Err` in the following situations:
+///   - If there's an error while taking backup
+///   - If there's an error when deleting the original file
+///   - If there's an error when creating the symlink
+///
+#[allow(dead_code)]
+pub fn replace_with_symlink(
+    path: &PathBuf,
+    source_path: &PathBuf,
+    backup_dir: Option<&PathBuf>,
+    base_dir: &PathBuf,
+) -> Result<(), AppError> {
+    // First delete the existing path (with backup if applicable)
+    delete_file(path, backup_dir, base_dir)?;
+    // Then create the symlink
+    std::os::unix::fs::symlink(source_path, path).map_err(AppError::Io)
 }
 
 #[cfg(test)]
@@ -237,4 +269,24 @@ mod tests {
 
         teardown();
     }
+
+    #[test]
+    #[serial]
+    fn test_replace_with_symlink() {
+        setup();
+
+        let path = new_file("abc/foo.txt", "file to be replaced with a symlink");
+        let backup_dir = Some(PathBuf::from(TEST_BACKUP_DIR));
+        let base_dir = PathBuf::from(TEST_FIXTURES_DIR);
+        let src = new_file("abc/foo/main.txt", "canonical file");
+        let res = replace_with_symlink(&path, &src, backup_dir.as_ref(), &base_dir);
+        assert!(res.is_ok(), "replace_with_symlink returned Ok result");
+        // let backup_path = backup_dir.unwrap().join("abc/foo.txt");
+        // assert!(backup_path.is_file(), "original file is backed up");
+        // assert!(target.is_symlink(), "file is now a soft link");
+        // assert_eq!(src, target.canonicalize().unwrap(), "file is now a soft link to the src path");
+
+        teardown();
+    }
+
 }
