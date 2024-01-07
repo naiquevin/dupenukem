@@ -86,14 +86,22 @@ fn partially_validate_path_to_symlink<'a>(
 ) -> Result<Action<'a>, Error> {
     let path = &filepath.path;
     let intended_src_path = source.unwrap_or(default_source);
+    // If the intended source path is itself a symlink, it's not
+    // supported/allowed
+    if intended_src_path.is_symlink() {
+        return Err(Error::OpNotAllowed(format!(
+            "Source path cannot be a symlink itself: {}",
+            intended_src_path.display()
+        )))
+    }
     if path.is_symlink() {
         // Path is a symlink but the action to take depends on whether
         // it can be resolved or not (broken).
         match path.canonicalize() {
             // If the symlink is valid, we further check whether the
             // source path it resolves to matches the intended source
-            // path derived above. If yes, it's a no-op. If not, it's
-            // an error (operation not allowed)
+            // path derived above. If yes, it's a no-op. Otherwise,
+            // it's an error (operation not allowed)
             Ok(actual_src_path) => {
                 if *intended_src_path == actual_src_path {
                     Ok(Action::Symlink {
@@ -122,9 +130,11 @@ fn partially_validate_path_to_symlink<'a>(
             is_no_op: false,
         })
     } else {
-        // Path doesn't exist
+        // Path doesn't exist. This basically means that the tool can
+        // be used to only replace existing files with symlinks
+        // i.e. it can't be used for creating new symlinks
         Err(Error::OpNotPossible(format!(
-            "Operation 'symlink' not possible on non-existing path: {} ",
+            "Operation 'symlink' not possible for non-existing path: {} ",
             filepath.path.display()
         )))
     }
