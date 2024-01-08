@@ -60,7 +60,7 @@ impl FilePath {
 }
 
 pub struct Snapshot {
-    rootdir: PathBuf,
+    pub rootdir: PathBuf,
     generated_at: DateTime<FixedOffset>,
     duplicates: HashMap<u64, Vec<FilePath>>,
 }

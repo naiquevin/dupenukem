@@ -107,7 +107,6 @@ fn take_backup(
 ///   - If there's an error while taking backup
 ///   - If there is an error while deleting the file
 ///
-#[allow(dead_code)]
 pub fn delete_file(
     path: &PathBuf,
     backup_dir: Option<&PathBuf>,
@@ -133,7 +132,6 @@ pub fn delete_file(
 ///   - If there's an error when deleting the original file
 ///   - If there's an error when creating the symlink
 ///
-#[allow(dead_code)]
 pub fn replace_with_symlink(
     path: &PathBuf,
     source_path: &PathBuf,
@@ -234,8 +232,7 @@ mod tests {
             .canonicalize()
             .expect("Couldn't canonicalize path");
         let g = PathBuf::from(TEST_FIXTURES_DIR).join("foo_1_link.txt");
-        std::os::unix::fs::symlink(&f, &g).
-            expect("Couldn't create symlink");
+        std::os::unix::fs::symlink(&f, &g).expect("Couldn't create symlink");
         assert!(g.is_symlink(), "Symlink is created");
         let res = take_backup(
             &g,
@@ -245,7 +242,10 @@ mod tests {
         match res {
             Ok(backup_path) => {
                 assert!(backup_path.is_file());
-                assert_eq!("dummy file to be symlinked", file_contents(backup_path).as_str());
+                assert_eq!(
+                    "dummy file to be symlinked",
+                    file_contents(backup_path).as_str()
+                );
             }
             Err(_) => assert!(false),
         }
@@ -288,5 +288,4 @@ mod tests {
 
         teardown();
     }
-
 }

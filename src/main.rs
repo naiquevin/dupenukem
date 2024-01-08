@@ -101,7 +101,7 @@ fn cmd_validate(snapshot_path: Option<&PathBuf>, stdin: &bool) -> Result<(), App
     match snapshot.validate() {
         Ok(actions) => {
             println!("Snapshot is valid!");
-            let num_pending = executor::pending_actions(&actions).len();
+            let num_pending = executor::pending_actions(&actions, false).len();
             if num_pending == 0 {
                 println!("No pending actions");
             } else {
@@ -119,7 +119,11 @@ fn cmd_validate(snapshot_path: Option<&PathBuf>, stdin: &bool) -> Result<(), App
 fn cmd_apply(snapshot_path: Option<&PathBuf>, stdin: &bool) -> Result<(), AppError> {
     let input = read_input(snapshot_path, stdin)?;
     let snapshot = textformat::parse(input)?;
-    snapshot.validate().and_then(executor::execute)
+    let backup_dir = PathBuf::from("/tmp/dupenukem_backup");
+    let dry_run = true;
+    snapshot.validate().and_then(|actions| {
+        executor::execute(actions, &dry_run, Some(&backup_dir), &snapshot.rootdir)
+    })
 }
 
 impl Cli {
