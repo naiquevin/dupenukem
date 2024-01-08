@@ -92,7 +92,7 @@ fn partially_validate_path_to_symlink<'a>(
         return Err(Error::OpNotAllowed(format!(
             "Source path cannot be a symlink itself: {}",
             intended_src_path.display()
-        )))
+        )));
     }
     if path.is_symlink() {
         // Path is a symlink but the action to take depends on whether
