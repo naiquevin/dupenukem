@@ -88,7 +88,7 @@ fn take_backup(
     info!(
         "Backing up {} under {}",
         rel_path.display(),
-        base_dir.display()
+        backup_dir.display()
     );
     Ok(backup_path)
 }

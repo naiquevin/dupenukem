@@ -1,6 +1,8 @@
 use crate::error::AppError;
 use crate::snapshot::{textformat, Snapshot};
+use chrono::offset::Local;
 use clap::{self, Parser, Subcommand};
+use dirs::home_dir;
 use inquire::Confirm;
 use log::{debug, info};
 use std::collections::HashSet;
@@ -45,6 +47,11 @@ enum Command {
             help = "Dry run i.e. the actions will only be logged and not actually run"
         )]
         dry_run: bool,
+        #[arg(
+            long,
+            help = "Custom backup directory. If not specified, a default one based on current timestamp will be used"
+        )]
+        backup_dir: Option<PathBuf>,
         snapshot_path: Option<PathBuf>,
     },
 }
@@ -122,14 +129,35 @@ fn cmd_validate(snapshot_path: Option<&PathBuf>, stdin: &bool) -> Result<(), App
     }
 }
 
+/// Returns default backup dir derived from the current timestamp.
+///
+/// The path prefix will be `~/.dupenukem/backups` if home dir can be
+/// obtained for the user otherwise it will be under the `$CWD`
+/// i.e. `./.dupenukem/backups`
+///
+/// Example backup dir path: `~/.dupenukem/backups/20240109163803`
+///
+fn default_backup_dir() -> PathBuf {
+    let path_prefix = home_dir()
+        .unwrap_or_else(|| PathBuf::from("."))
+        .join(".dupenukem/backups");
+    let dirname = Local::now().format("%Y%m%d%H%M%S");
+    path_prefix.join(dirname.to_string())
+}
+
 fn cmd_apply(
     snapshot_path: Option<&PathBuf>,
     stdin: &bool,
     dry_run: &bool,
+    backup_dir: &Option<PathBuf>,
 ) -> Result<(), AppError> {
     let input = read_input(snapshot_path, stdin)?;
     let snapshot = textformat::parse(input)?;
-    let backup_dir = PathBuf::from("/tmp/dupenukem_backup");
+    // A tmp let binding for default backup dir is required here
+    // because the fallback value in `unwrap_or` is a pointer and not
+    // a value.
+    let dbd = default_backup_dir();
+    let backup_dir_path = backup_dir.as_ref().unwrap_or(&dbd);
     snapshot.validate().and_then(|actions| {
         if !*dry_run {
             let ans = Confirm::new("All changes will be executed. Do you want to proceed?")
@@ -152,7 +180,7 @@ fn cmd_apply(
                 }
             }
         }
-        executor::execute(actions, &dry_run, Some(&backup_dir), &snapshot.rootdir)
+        executor::execute(actions, &dry_run, Some(&backup_dir_path), &snapshot.rootdir)
     })
 }
 
@@ -172,7 +200,8 @@ impl Cli {
                 stdin,
                 snapshot_path,
                 dry_run,
-            }) => cmd_apply(snapshot_path.as_ref(), stdin, dry_run),
+                backup_dir,
+            }) => cmd_apply(snapshot_path.as_ref(), stdin, dry_run, backup_dir),
             None => Err(AppError::Cmd("Please specify the command".to_owned())),
         }
     }
