@@ -6,20 +6,6 @@ use std::io::{self, Read};
 use std::path::{Path, PathBuf};
 use xxhash_rust::xxh3;
 
-/*
-
-In the following 2 functions, the argument is defined using generics
-as AsRef<Path>. This basically means that the argument can be of any
-type that implements the trait AsRef<Path>.
-
-The most common usecase is to accept Path, PathBuf or sometimes even
-strings. When working with Path types, the methods we usually
-encounter return either &Path (reference to the data) or PathBuf (copy
-that actually holds the data). So it helps if any functions that we
-implement also support the same generics.
-
-*/
-
 fn file_contents_as_bytes<P: AsRef<Path>>(path: P) -> io::Result<Vec<u8>> {
     let mut f = fs::File::open(path)?;
     let mut buf: Vec<u8> = Vec::new();
