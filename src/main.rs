@@ -1,7 +1,8 @@
 use crate::error::AppError;
 use crate::snapshot::{textformat, Snapshot};
 use clap::{self, Parser, Subcommand};
-use log::info;
+use inquire::Confirm;
+use log::{debug, info};
 use std::collections::HashSet;
 use std::path::PathBuf;
 use std::process;
@@ -39,7 +40,10 @@ enum Command {
     Apply {
         #[arg(long, help = "Read text from std input")]
         stdin: bool,
-        #[arg(long, help = "Dry run i.e. the actions will only be logged and not actually run")]
+        #[arg(
+            long,
+            help = "Dry run i.e. the actions will only be logged and not actually run"
+        )]
         dry_run: bool,
         snapshot_path: Option<PathBuf>,
     },
@@ -118,11 +122,36 @@ fn cmd_validate(snapshot_path: Option<&PathBuf>, stdin: &bool) -> Result<(), App
     }
 }
 
-fn cmd_apply(snapshot_path: Option<&PathBuf>, stdin: &bool, dry_run: &bool) -> Result<(), AppError> {
+fn cmd_apply(
+    snapshot_path: Option<&PathBuf>,
+    stdin: &bool,
+    dry_run: &bool,
+) -> Result<(), AppError> {
     let input = read_input(snapshot_path, stdin)?;
     let snapshot = textformat::parse(input)?;
     let backup_dir = PathBuf::from("/tmp/dupenukem_backup");
     snapshot.validate().and_then(|actions| {
+        if !*dry_run {
+            let ans = Confirm::new("All changes will be executed. Do you want to proceed?")
+                .with_default(false)
+                .with_help_message(
+                    "Tip: To see the changes run the command with '--dry-run' option",
+                )
+                .prompt();
+            match ans {
+                Ok(true) => debug!("Received confirmation from user. Proceeding.."),
+                Ok(false) => {
+                    debug!("User asked to abort");
+                    println!("Aborting..");
+                    process::exit(0);
+                }
+                Err(e) => {
+                    debug!("Error encountered in confirm prompt: {:?}", e);
+                    println!("Something went wrong. Aborting..");
+                    process::exit(1);
+                }
+            }
+        }
         executor::execute(actions, &dry_run, Some(&backup_dir), &snapshot.rootdir)
     })
 }
