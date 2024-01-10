@@ -5,12 +5,16 @@ set -e
 rootdir=$1
 script=$(realpath $2)
 
+echo Creating $rootdir
 mkdir $rootdir
 
-cd $1
+echo Changing directory to $rootdir
+cd $rootdir
 
-export FF_ROOTDIR=$rootdir
-
+echo Executing the script: $script
 bash $script
 
+cd - > /dev/null
+
+echo Created the following directory structure in $rootdir
 tree $rootdir
