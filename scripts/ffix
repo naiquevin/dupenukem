@@ -1,5 +1,20 @@
 #!/usr/bin/env bash
 
+## Script for creating test fixtures or sample directories to test the
+## script against.
+##
+## Usage:
+##
+##   $ ffix /path/to/target/dir path/to/fixture.sh
+##
+## The second argument must be a bash script which may contain any
+## bash code to create the required directory structure. An example
+## fixture file is provided at ../examples/fixtures/basic.sh. You may
+## test it by running the following command from the project root
+##
+##   $ scripts/ffix /tmp/basic examples/fixtures/basic.sh
+##
+
 set -e
 
 rootdir=$1
