@@ -1,5 +1,5 @@
 use crate::error::AppError;
-use crate::fileutil::{delete_file, replace_with_symlink};
+use crate::fileutil::{delete_file, normalize_path, replace_with_symlink};
 use log::info;
 use std::path::PathBuf;
 
@@ -9,6 +9,7 @@ pub enum Action<'a> {
     Symlink {
         path: &'a PathBuf,
         source: &'a PathBuf,
+        is_relative: bool,
         is_no_op: bool,
     },
     Delete {
@@ -18,12 +19,13 @@ pub enum Action<'a> {
 }
 
 impl<'a> Action<'a> {
-    fn dry_run(&self) {
+    fn dry_run(&self, rootdir: &PathBuf) {
         match self {
             Self::Keep(_) => {}
             Self::Symlink {
                 path,
                 source,
+                is_relative,
                 is_no_op,
             } => {
                 let mut res = String::from("");
@@ -31,13 +33,16 @@ impl<'a> Action<'a> {
                 if *is_no_op {
                     res.push_str("[NO-OP]");
                 }
+
+                let src_path = normalize_path(source, *is_relative, rootdir).unwrap();
+
                 res.push_str(
                     format!(
                         " File to be replaced with symlink: {} -> {}",
                         path.display(),
                         // Here we're assuming that the source will never be
                         // None
-                        source.display(),
+                        src_path.display(),
                     )
                     .as_str(),
                 );
@@ -62,20 +67,22 @@ impl<'a> Action<'a> {
             Self::Symlink {
                 path,
                 source,
+                is_relative,
                 is_no_op,
             } => {
+                let src_path = normalize_path(source, *is_relative, rootdir)?;
                 if !is_no_op {
                     info!(
                         "Replacing file with symlink: {} -> {}",
                         path.display(),
-                        source.display()
+                        src_path.display()
                     );
-                    replace_with_symlink(path, source, backup_dir, rootdir)
+                    replace_with_symlink(path, &src_path, backup_dir, rootdir)
                 } else {
                     info!(
                         "Intended symlink already exists (no-op): {} -> {}",
                         path.display(),
-                        source.display()
+                        src_path.display()
                     );
                     Ok(())
                 }
@@ -102,6 +109,7 @@ pub fn pending_actions<'a>(actions: &'a Vec<Action>, include_no_op: bool) -> Vec
                 is_no_op,
                 path: _,
                 source: _,
+                is_relative: _,
             } => include_no_op || !is_no_op,
             Action::Delete { is_no_op, path: _ } => include_no_op || !is_no_op,
         })
@@ -126,7 +134,7 @@ pub fn execute(
     );
     for action in actions_pending {
         if *dry_run {
-            action.dry_run();
+            action.dry_run(rootdir);
         } else {
             action.execute(backup_dir, rootdir)?;
         }
@@ -151,6 +159,7 @@ mod tests {
                 path: &p2,
                 source: &p3,
                 is_no_op: true,
+                is_relative: true,
             },
             Action::Delete {
                 path: &p4,

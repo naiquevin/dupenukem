@@ -12,7 +12,13 @@ pub mod validation;
 #[derive(Debug, PartialEq, Eq)]
 enum FileOp {
     Keep,
-    Symlink { source: Option<PathBuf> },
+    Symlink {
+        // The `PathBuf` may be absolute or relative. We should never
+        // canonicalize it so that the type of symlink that gets
+        // created (relative or asbsolute) is exactly as per how the
+        // user has specified it in the input snapshot file.
+        source: Option<PathBuf>,
+    },
     Delete,
 }
 
@@ -50,7 +56,7 @@ impl FilePath {
             // @NOTE: Here we're not handling the case where
             // `canonicalize` returns an Err
             FileOp::Symlink {
-                source: path.canonicalize().ok(),
+                source: path.read_link().ok(),
             }
         } else {
             FileOp::Keep

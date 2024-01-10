@@ -29,6 +29,49 @@ pub fn within_rootdir(rootdir: &PathBuf, path: &PathBuf) -> bool {
     path.ancestors().find(|d| *d == rootdir).is_some()
 }
 
+/// Computes normalized path depending on whether it is expected to be
+/// relative or absolute
+///
+///  - If the provided `path` is absolute but `must_be_relative` is
+///    true, then the relative path as per the `base_dir` is returned.
+///  - If the provided `path` is relative but `must_be_relative` is
+///    false, then the absolute path is created by joining the
+///    provided to the `base_dir`.
+///
+///  # Errors
+///
+///  This function will return Err if the `path` is not located under
+///  the `base_dir`.
+///
+///
+pub fn normalize_path(
+    path: &PathBuf,
+    must_be_relative: bool,
+    base_dir: &PathBuf,
+) -> Result<PathBuf, AppError> {
+    let is_relative = path.is_relative();
+    if must_be_relative && !is_relative {
+        path.strip_prefix(base_dir)
+            .map_err(|_| {
+                AppError::Fs(format!(
+                    "Couldn't compute relative path for: {}",
+                    path.display()
+                ))
+            })
+            .map(|p| p.to_path_buf())
+    } else if !must_be_relative && is_relative {
+        Ok(base_dir.join(path))
+    } else if !is_relative {
+        // Even if the path is already absolute, verify that it's
+        // under the base_dir
+        path.strip_prefix(base_dir)
+            .map_err(|_| AppError::Fs(format!("Path not under base_dir: {}", path.display())))
+            .map(|_| path.to_path_buf())
+    } else {
+        Ok(path.to_path_buf())
+    }
+}
+
 /// Takes backup of the file located at `path` inside the `backup_dir`
 /// directory, preserving the directory structure considering
 /// 'base_dir' as the base directory for the path.
@@ -152,6 +195,68 @@ mod tests {
 
     fn teardown() {
         fs::remove_dir_all(TEST_DATA_DIR).unwrap();
+    }
+
+    #[test]
+    fn test_normalize_path() {
+        let base_dir = PathBuf::from("/root/mydir");
+
+        // must_be_relative is true but path is absolute
+        let p = PathBuf::from("/root/mydir/foo/1.txt");
+        let res = normalize_path(&p, true, &base_dir);
+        match res {
+            Ok(rp) => assert_eq!(PathBuf::from("foo/1.txt"), rp),
+            Err(_) => assert!(false),
+        }
+
+        // must be relative is true, path is absolute but not under
+        // the base_dir (unexpected case)
+        let p = PathBuf::from("/someother/mydir/foo/1.txt");
+        let res = normalize_path(&p, true, &base_dir);
+        match res {
+            Ok(_) => assert!(false),
+            Err(_) => assert!(true),
+        }
+
+        // must_be_relative is false but path is relative
+        let p = PathBuf::from("foo/1.txt");
+        let res = normalize_path(&p, false, &base_dir);
+        match res {
+            Ok(rp) => assert_eq!(PathBuf::from("/root/mydir/foo/1.txt"), rp),
+            Err(_) => assert!(false),
+        }
+
+        let p = PathBuf::from("../foo/1.txt");
+        let res = normalize_path(&p, false, &base_dir);
+        match res {
+            Ok(rp) => assert_eq!(PathBuf::from("/root/mydir/../foo/1.txt"), rp),
+            Err(_) => assert!(false),
+        }
+
+        // must_be_relative is true and path is already realtive
+        let p = PathBuf::from("foo/1.txt");
+        let res = normalize_path(&p, true, &base_dir);
+        match res {
+            Ok(rp) => assert_eq!(p, rp),
+            Err(_) => assert!(false),
+        }
+
+        // must be relative is false and path is already absolute
+        let p = PathBuf::from("/root/mydir/foo/1.txt");
+        let res = normalize_path(&p, false, &base_dir);
+        match res {
+            Ok(rp) => assert_eq!(p, rp),
+            Err(_) => assert!(false),
+        }
+
+        // must be relative is false, path is already absolute but it
+        // isn't located under `base_dir`.
+        let p = PathBuf::from("/someother/mydir/foo/1.txt");
+        let res = normalize_path(&p, false, &base_dir);
+        match res {
+            Ok(_) => assert!(false),
+            Err(_) => assert!(true),
+        }
     }
 
     fn new_file<P: AsRef<Path>>(rel_path: P, contents: &str) -> PathBuf {

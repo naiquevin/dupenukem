@@ -86,6 +86,7 @@ fn partially_validate_path_to_symlink<'a>(
 ) -> Result<Action<'a>, Error> {
     let path = &filepath.path;
     let intended_src_path = source.unwrap_or(default_source);
+
     // If the intended source path is itself a symlink, it's not
     // supported/allowed
     if intended_src_path.is_symlink() {
@@ -94,10 +95,21 @@ fn partially_validate_path_to_symlink<'a>(
             intended_src_path.display()
         )));
     }
+
+    // Here we also derive whether the source path should be relative
+    // or absolute. If it's specified by the user, consider that else
+    // assume relative.
+    let is_sym_relative = match source {
+        Some(p) => p.is_relative(),
+        None => true,
+    };
+
     if path.is_symlink() {
         // Path is a symlink but the action to take depends on whether
-        // it can be resolved or not (broken).
-        match path.canonicalize() {
+        // it can be resolved or not (broken). @Note that we're using
+        // `read_link` instead of `canonicalize` as the latter will
+        // also perform an implicit conversion to absolute path.
+        match path.read_link() {
             // If the symlink is valid, we further check whether the
             // source path it resolves to matches the intended source
             // path derived above. If yes, it's a no-op. Otherwise,
@@ -107,6 +119,7 @@ fn partially_validate_path_to_symlink<'a>(
                     Ok(Action::Symlink {
                         path: &filepath.path,
                         source: intended_src_path,
+                        is_relative: is_sym_relative,
                         is_no_op: true,
                     })
                 } else {
@@ -120,6 +133,7 @@ fn partially_validate_path_to_symlink<'a>(
             Err(_) => Ok(Action::Symlink {
                 path: &filepath.path,
                 source: intended_src_path,
+                is_relative: is_sym_relative,
                 is_no_op: false,
             }),
         }
@@ -127,6 +141,7 @@ fn partially_validate_path_to_symlink<'a>(
         Ok(Action::Symlink {
             path: &filepath.path,
             source: intended_src_path,
+            is_relative: is_sym_relative,
             is_no_op: false,
         })
     } else {
