@@ -197,6 +197,24 @@ fn render_lines(snap: &Snapshot) -> Vec<Line> {
         }
         lines.push(Line::Blank);
     }
+
+    let help = vec![
+        "Reference:",
+        "keep <target> = keep the target path as it is",
+        "delete <target> = delete the target path",
+        "symlink <target> [-> <src>] = Replace target with a symlink",
+        ".       If 'src' is specified, it can either be an absolute or",
+        ".       relative (to 'target'). Else one of the duplicates marked",
+        ".       as 'keep' will be considered. If 'src' is not specified,",
+        ".       a relative symlink will be created.",
+        "",
+        "This section is a comment and will be ignored by the tool"
+    ];
+
+    for help_line in help {
+        lines.push(Line::Comment(help_line.to_string()));
+    }
+
     lines
 }
 
