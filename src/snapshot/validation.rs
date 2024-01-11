@@ -79,12 +79,59 @@ fn partially_validate_path_to_keep(filepath: &FilePath) -> Result<Action, Error>
     }
 }
 
+/// Verifies the hash of the symlink source file by comparing it with
+/// the hash of the target.
+///
+/// Instead of computing the hash of the `target` file for comparison,
+/// it accepts an already computed `hash` as the 3rd argument.
+///
+/// The `target` argument is required to resolve the source path in
+/// relation to the target, in case it's a relative path.
+///
+/// # Errors
+///
+/// This function returns `Err` in following situations:
+///   - if the absolute source path cannot be resolved (in relation to
+///     the target)
+///   - if the hash of the source file contents cannot be obtained for
+///     any reason.
+///
+fn verify_symlink_hash(source: &PathBuf, target: &PathBuf, target_hash: &u64) -> Result<bool, Error> {
+    let src_hash = if source.is_absolute() {
+        fileutil::file_contents_as_xxh3_64(&source).map_err(Error::Io)
+    } else {
+        let p = target.parent()
+            .unwrap()
+            .join(source)
+            .canonicalize()
+            .map_err(Error::Io)?;
+        fileutil::file_contents_as_xxh3_64(&p).map_err(Error::Io)
+    }?;
+    Ok(src_hash == *target_hash)
+}
+
 fn partially_validate_path_to_symlink<'a>(
     filepath: &'a FilePath,
     source: Option<&'a PathBuf>,
     default_source: &'a PathBuf,
+    hash: &u64,
 ) -> Result<Action<'a>, Error> {
     let path = &filepath.path;
+
+    // If source path is `Some` which means it's specified by the
+    // user, verify that it's hash matches that of the group. This is
+    // to prevent the user from specifying some other file as the
+    // symlink source path (a common copy-paste mistake).
+    if let Some(src) = source {
+        if !verify_symlink_hash(src, &filepath.path, hash)? {
+            return Err(Error::OpNotPossible(format!(
+                "Hash mismatch for specified symlink source path: {} -> {}",
+                filepath.path.display(),
+                src.display()
+            )));
+        }
+    }
+
     let intended_src_path = source.unwrap_or(default_source);
 
     // If the intended source path is itself a symlink, it's not
@@ -190,7 +237,7 @@ fn validate_path<'a>(
     let action = match &filepath.op {
         FileOp::Keep => partially_validate_path_to_keep(filepath)?,
         FileOp::Symlink { source } => {
-            partially_validate_path_to_symlink(filepath, source.as_ref(), &keeper.path)?
+            partially_validate_path_to_symlink(filepath, source.as_ref(), &keeper.path, hash)?
         }
         FileOp::Delete => partially_validate_path_to_delete(filepath)?,
     };
