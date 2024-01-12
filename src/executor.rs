@@ -1,5 +1,7 @@
 use crate::error::AppError;
-use crate::fileutil::{delete_file, normalize_path, replace_with_symlink};
+use crate::fileutil::{
+    delete_file, normalize_path, normalize_symlink_src_path, replace_with_symlink,
+};
 use log::info;
 use std::path::PathBuf;
 
@@ -9,7 +11,7 @@ pub enum Action<'a> {
     Symlink {
         path: &'a PathBuf,
         source: &'a PathBuf,
-        is_relative: bool,
+        is_explicit: bool,
         is_no_op: bool,
     },
     Delete {
@@ -25,7 +27,7 @@ impl<'a> Action<'a> {
             Self::Symlink {
                 path,
                 source,
-                is_relative,
+                is_explicit,
                 is_no_op,
             } => {
                 let mut res = String::from("");
@@ -33,15 +35,15 @@ impl<'a> Action<'a> {
                 if *is_no_op {
                     res.push_str("[NO-OP]");
                 }
-                let src_path = normalize_path(source, *is_relative, rootdir).unwrap();
+
+                let src_path = normalize_symlink_src_path(path, source, *is_explicit).unwrap();
+
                 // Use relative path in dry-run output
                 let rel_path = normalize_path(path, true, rootdir).unwrap();
                 res.push_str(
                     format!(
                         " File to be replaced with symlink: {} -> {}",
                         rel_path.display(),
-                        // Here we're assuming that the source will never be
-                        // None
                         src_path.display(),
                     )
                     .as_str(),
@@ -69,11 +71,12 @@ impl<'a> Action<'a> {
             Self::Symlink {
                 path,
                 source,
-                is_relative,
+                is_explicit,
                 is_no_op,
             } => {
-                let src_path = normalize_path(source, *is_relative, rootdir)?;
-                // Use relative path in log messages
+                let src_path = normalize_symlink_src_path(path, source, *is_explicit).unwrap();
+
+                // Show relative path in log messages
                 let rel_path = normalize_path(path, true, rootdir).unwrap();
                 if !is_no_op {
                     info!(
@@ -92,7 +95,7 @@ impl<'a> Action<'a> {
                 }
             }
             Self::Delete { path, is_no_op } => {
-                // Use relative path in log messages
+                // Show relative path in log messages
                 let rel_path = normalize_path(path, true, rootdir).unwrap();
                 if !is_no_op {
                     info!("Deleting file: {}", rel_path.display());
@@ -115,7 +118,7 @@ pub fn pending_actions<'a>(actions: &'a Vec<Action>, include_no_op: bool) -> Vec
                 is_no_op,
                 path: _,
                 source: _,
-                is_relative: _,
+                is_explicit: _,
             } => include_no_op || !is_no_op,
             Action::Delete { is_no_op, path: _ } => include_no_op || !is_no_op,
         })
@@ -165,7 +168,7 @@ mod tests {
                 path: &p2,
                 source: &p3,
                 is_no_op: true,
-                is_relative: true,
+                is_explicit: true,
             },
             Action::Delete {
                 path: &p4,

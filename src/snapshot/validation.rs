@@ -148,13 +148,15 @@ fn partially_validate_path_to_symlink<'a>(
         )));
     }
 
-    // Here we also derive whether the source path should be relative
-    // or absolute. If it's specified by the user, consider that else
-    // assume relative.
-    let is_sym_relative = match source {
-        Some(p) => p.is_relative(),
-        None => true,
-    };
+    // // Here we also derive whether the source path should be relative
+    // // or absolute. If it's specified by the user, consider that else
+    // // assume relative.
+    // let is_sym_relative = match source {
+    //     Some(p) => p.is_relative(),
+    //     None => true,
+    // };
+
+    let is_explicit = source.is_some();
 
     if path.is_symlink() {
         // Path is a symlink but the action to take depends on whether
@@ -171,7 +173,7 @@ fn partially_validate_path_to_symlink<'a>(
                     Ok(Action::Symlink {
                         path: &filepath.path,
                         source: intended_src_path,
-                        is_relative: is_sym_relative,
+                        is_explicit,
                         is_no_op: true,
                     })
                 } else {
@@ -185,7 +187,7 @@ fn partially_validate_path_to_symlink<'a>(
             Err(_) => Ok(Action::Symlink {
                 path: &filepath.path,
                 source: intended_src_path,
-                is_relative: is_sym_relative,
+                is_explicit,
                 is_no_op: false,
             }),
         }
@@ -193,7 +195,7 @@ fn partially_validate_path_to_symlink<'a>(
         Ok(Action::Symlink {
             path: &filepath.path,
             source: intended_src_path,
-            is_relative: is_sym_relative,
+            is_explicit,
             is_no_op: false,
         })
     } else {

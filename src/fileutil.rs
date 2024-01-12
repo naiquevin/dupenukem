@@ -1,5 +1,6 @@
 use crate::error::AppError;
 use log::info;
+use pathdiff::diff_paths;
 use std::fs;
 use std::io::{self, Read};
 use std::path::{Path, PathBuf};
@@ -55,6 +56,50 @@ pub fn normalize_path(
             .map(|_| path.to_path_buf())
     } else {
         Ok(path.to_path_buf())
+    }
+}
+
+/// Computes normalized source path for a symlink based on whether or
+/// not it's explicitly specified by the user
+///
+/// # Arguments
+///    - `target`: Symlink target path
+///    - `source`: Symlink source path
+///    - `is_explicit`: whether or not the source path is explicit
+///      i.e. specified by the user
+///
+/// If the `is_explicit` is true, then (a copy of the) source is
+/// returned. If `is_explicit` is false, source path is computed
+/// relative to the parent of the `target` path.
+///
+/// # Errors
+///
+/// This function returns Err in the following situations:
+///   - If parent of the the target path cannot be computed. This
+///     happens when the target path is `/` or empty string.
+///   - If `source` path is not absolute when `is_explicit` is
+///     false. Here the assumption is that if the user is not
+///     explicitly specifying the `source`, the fallback value
+///     provided by the system would be an absolute path.
+///
+/// This function assumes that `target` is an absolute path and
+/// panics if that's not the case
+pub fn normalize_symlink_src_path(
+    target: &PathBuf,
+    source: &PathBuf,
+    is_explicit: bool,
+) -> Result<PathBuf, AppError> {
+    if is_explicit {
+        Ok(source.to_path_buf())
+    } else {
+        let target_parent = target.parent().ok_or(AppError::Fs(format!(
+            "Couldn't compute parent dir of the target path: {}",
+            target.display()
+        )))?;
+        diff_paths(source, target_parent).ok_or(AppError::Fs(format!(
+            "Source path is not absolute: {}",
+            source.display()
+        )))
     }
 }
 
