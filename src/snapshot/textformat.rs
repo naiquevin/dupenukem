@@ -1,5 +1,6 @@
 use super::{FileOp, FilePath, Snapshot};
 use crate::error::AppError;
+use crate::fileutil::normalize_path;
 use crate::hash::Checksum;
 use chrono::{DateTime, FixedOffset};
 use regex::Regex;
@@ -146,8 +147,16 @@ impl Line {
 
     // Constructor of sorts to create PathInfo variant from a
     // `FilePath` instance
-    fn pathinfo(filepath: &FilePath) -> Self {
-        let path = filepath.path.to_str().unwrap().to_owned();
+    fn pathinfo(filepath: &FilePath, rootdir: &PathBuf) -> Self {
+        // The `path` field in `Self::PathInfo` must be a relative
+        // path, so we first compute that using the rootdir
+        let path = normalize_path(&filepath.path, true, rootdir)
+            // assuming that `rootdir` is an ancestor of the path
+            .unwrap()
+            .to_str()
+            // assuming that path is a valid unicode
+            .unwrap()
+            .to_owned();
         let op = filepath.op.keyword().to_owned();
         match &filepath.op {
             FileOp::Symlink { source } => {
@@ -193,7 +202,7 @@ fn render_lines(snap: &Snapshot) -> Vec<Line> {
     for (k, vs) in snap.duplicates.iter() {
         lines.push(Line::Checksum(format!("{}", k)));
         for v in vs {
-            lines.push(Line::pathinfo(v));
+            lines.push(Line::pathinfo(v, &snap.rootdir));
         }
         lines.push(Line::Blank);
     }
@@ -256,8 +265,12 @@ pub fn parse(str_lines: Vec<String>) -> Result<Snapshot, AppError> {
                 extra,
             }) => {
                 let group = Checksum::new(curr_group.unwrap());
+                // `clone` is called below because `ok_or` causes a move
+                let base_dir = rootdir.clone().ok_or(AppError::SnapshotParsing)?;
+                let path = PathBuf::from(path);
+                let abs_path = normalize_path(&path, false, &base_dir)?;
                 let filepath = FilePath {
-                    path: PathBuf::from(path),
+                    path: abs_path,
                     op: FileOp::decode(op.as_str(), extra.as_ref().map(|s| s.as_str())).unwrap(),
                 };
                 if let Some(fps) = duplicates.get_mut(&group) {
@@ -462,30 +475,32 @@ mod tests {
 
     #[test]
     fn test_line_pathinfo() {
+        let rootdir = PathBuf::from("/base_dir");
+
         // Symlink with extra
-        let t = PathBuf::from("/bar/1.txt");
-        let s = PathBuf::from("/foo/1.txt");
+        let t = PathBuf::from("/base_dir/bar/1.txt");
+        let s = PathBuf::from("../foo/1.txt");
         let op = FileOp::Symlink { source: Some(s) };
         let fp = FilePath { path: t, op };
-        let line = Line::pathinfo(&fp);
+        let line = Line::pathinfo(&fp, &rootdir);
         assert_eq!(
             Line::PathInfo {
-                path: "/bar/1.txt".to_owned(),
+                path: "bar/1.txt".to_owned(),
                 op: "symlink".to_owned(),
                 delim: Some("->".to_owned()),
-                extra: Some("/foo/1.txt".to_owned()),
+                extra: Some("../foo/1.txt".to_owned()),
             },
             line
         );
 
         // Symlink without extra
-        let path = PathBuf::from("/foo/1.txt");
+        let path = PathBuf::from("/base_dir/foo/1.txt");
         let op = FileOp::Symlink { source: None };
         let fp = FilePath { path, op };
-        let line = Line::pathinfo(&fp);
+        let line = Line::pathinfo(&fp, &rootdir);
         assert_eq!(
             Line::PathInfo {
-                path: "/foo/1.txt".to_owned(),
+                path: "foo/1.txt".to_owned(),
                 op: "symlink".to_owned(),
                 delim: Some("->".to_owned()),
                 extra: None,
@@ -494,13 +509,13 @@ mod tests {
         );
 
         // Keep
-        let path = PathBuf::from("/foo/1.txt");
+        let path = PathBuf::from("/base_dir/foo/1.txt");
         let op = FileOp::Keep;
         let fp = FilePath { path, op };
-        let line = Line::pathinfo(&fp);
+        let line = Line::pathinfo(&fp, &rootdir);
         assert_eq!(
             Line::PathInfo {
-                path: "/foo/1.txt".to_owned(),
+                path: "foo/1.txt".to_owned(),
                 op: "keep".to_owned(),
                 delim: None,
                 extra: None,
@@ -509,13 +524,13 @@ mod tests {
         );
 
         // Delete
-        let path = PathBuf::from("/foo/1.txt");
+        let path = PathBuf::from("/base_dir/foo/1.txt");
         let op = FileOp::Delete;
         let fp = FilePath { path, op };
-        let line = Line::pathinfo(&fp);
+        let line = Line::pathinfo(&fp, &rootdir);
         assert_eq!(
             Line::PathInfo {
-                path: "/foo/1.txt".to_owned(),
+                path: "foo/1.txt".to_owned(),
                 op: "delete".to_owned(),
                 delim: None,
                 extra: None,

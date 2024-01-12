@@ -33,13 +33,13 @@ impl<'a> Action<'a> {
                 if *is_no_op {
                     res.push_str("[NO-OP]");
                 }
-
                 let src_path = normalize_path(source, *is_relative, rootdir).unwrap();
-
+                // Use relative path in dry-run output
+                let rel_path = normalize_path(path, true, rootdir).unwrap();
                 res.push_str(
                     format!(
                         " File to be replaced with symlink: {} -> {}",
-                        path.display(),
+                        rel_path.display(),
                         // Here we're assuming that the source will never be
                         // None
                         src_path.display(),
@@ -54,7 +54,9 @@ impl<'a> Action<'a> {
                 if *is_no_op {
                     res.push_str("[NO-OP]");
                 }
-                res.push_str(format!(" File to be deleted: {}", path.display()).as_str());
+                // Use relative path in dry-run output
+                let rel_path = normalize_path(path, true, rootdir).unwrap();
+                res.push_str(format!(" File to be deleted: {}", rel_path.display()).as_str());
                 eprintln!("{}", res)
             }
         }
@@ -71,28 +73,32 @@ impl<'a> Action<'a> {
                 is_no_op,
             } => {
                 let src_path = normalize_path(source, *is_relative, rootdir)?;
+                // Use relative path in log messages
+                let rel_path = normalize_path(path, true, rootdir).unwrap();
                 if !is_no_op {
                     info!(
                         "Replacing file with symlink: {} -> {}",
-                        path.display(),
+                        rel_path.display(),
                         src_path.display()
                     );
                     replace_with_symlink(path, &src_path, backup_dir, rootdir)
                 } else {
                     info!(
                         "Intended symlink already exists (no-op): {} -> {}",
-                        path.display(),
+                        rel_path.display(),
                         src_path.display()
                     );
                     Ok(())
                 }
             }
             Self::Delete { path, is_no_op } => {
+                // Use relative path in log messages
+                let rel_path = normalize_path(path, true, rootdir).unwrap();
                 if !is_no_op {
-                    info!("Deleting file: {}", path.display());
+                    info!("Deleting file: {}", rel_path.display());
                     delete_file(path, backup_dir, rootdir)
                 } else {
-                    info!("File already deleted: {}", path.display());
+                    info!("File already deleted: {}", rel_path.display());
                     Ok(())
                 }
             }
