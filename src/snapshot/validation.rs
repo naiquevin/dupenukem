@@ -139,7 +139,8 @@ fn partially_validate_path_to_symlink<'a>(
     let intended_src_path = source.unwrap_or(default_source);
 
     // If the intended source path is itself a symlink, it's not
-    // supported/allowed
+    // supported/allowed. Note that this check is important regardless
+    // of whether the source is specified by the user.
     if intended_src_path.is_symlink() {
         return Err(Error::OpNotAllowed(format!(
             "Source path cannot be a symlink itself: {}",
