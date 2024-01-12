@@ -1,6 +1,7 @@
 use super::{FileOp, FilePath, Snapshot};
 use crate::executor::Action;
 use crate::fileutil;
+use crate::hash::Checksum;
 use std::io;
 use std::path::PathBuf;
 
@@ -41,20 +42,18 @@ fn find_keeper(filepaths: &Vec<FilePath>) -> Option<&FilePath> {
         .find(|filepath| filepath.op == FileOp::Keep)
 }
 
-fn validate_group(hash: &u64, filepaths: &Vec<FilePath>) -> Result<(), Error> {
+fn validate_group(hash: &Checksum, filepaths: &Vec<FilePath>) -> Result<(), Error> {
     let n = filepaths.len();
     if n <= 1 {
         return Err(Error::CorruptSnapshot(format!(
-            "Group must contain at least 2 paths; {} found for {:x}",
-            n, hash
+            "Group must contain at least 2 paths; {n} found for {hash}"
         )));
     }
 
     match find_keeper(filepaths) {
         Some(_) => Ok(()),
         None => Err(Error::OpNotAllowed(format!(
-            "Group must contain at least 1 path marked 'keep'. None found for {:x}",
-            hash
+            "Group must contain at least 1 path marked 'keep'. None found for {hash}"
         ))),
     }
 }
@@ -96,16 +95,21 @@ fn partially_validate_path_to_keep(filepath: &FilePath) -> Result<Action, Error>
 ///   - if the hash of the source file contents cannot be obtained for
 ///     any reason.
 ///
-fn verify_symlink_hash(source: &PathBuf, target: &PathBuf, target_hash: &u64) -> Result<bool, Error> {
+fn verify_symlink_hash(
+    source: &PathBuf,
+    target: &PathBuf,
+    target_hash: &Checksum,
+) -> Result<bool, Error> {
     let src_hash = if source.is_absolute() {
-        fileutil::file_contents_as_xxh3_64(&source).map_err(Error::Io)
+        Checksum::of_file(&source).map_err(Error::Io)
     } else {
-        let p = target.parent()
+        let p = target
+            .parent()
             .unwrap()
             .join(source)
             .canonicalize()
             .map_err(Error::Io)?;
-        fileutil::file_contents_as_xxh3_64(&p).map_err(Error::Io)
+        Checksum::of_file(&p).map_err(Error::Io)
     }?;
     Ok(src_hash == *target_hash)
 }
@@ -114,7 +118,7 @@ fn partially_validate_path_to_symlink<'a>(
     filepath: &'a FilePath,
     source: Option<&'a PathBuf>,
     default_source: &'a PathBuf,
-    hash: &u64,
+    hash: &Checksum,
 ) -> Result<Action<'a>, Error> {
     let path = &filepath.path;
 
@@ -219,7 +223,7 @@ fn partially_validate_path_to_delete<'a>(filepath: &'a FilePath) -> Result<Actio
 
 fn validate_path<'a>(
     rootdir: &PathBuf,
-    hash: &u64,
+    hash: &Checksum,
     filepath: &'a FilePath,
     keeper: &'a FilePath,
 ) -> Result<Action<'a>, Error> {
@@ -242,15 +246,15 @@ fn validate_path<'a>(
         FileOp::Delete => partially_validate_path_to_delete(filepath)?,
     };
 
-    let computed_hash = fileutil::file_contents_as_xxh3_64(&filepath.path).map_err(Error::Io)?;
+    let computed_hash = Checksum::of_file(&filepath.path).map_err(Error::Io)?;
 
     if computed_hash == *hash {
         Ok(action)
     } else {
         Err(Error::ChecksumMismatch {
             path: path.display().to_string(),
-            actual: format!("{:x}", computed_hash),
-            expected: format!("{:x}", hash),
+            actual: format!("{}", computed_hash),
+            expected: format!("{}", hash),
         })
     }
 }

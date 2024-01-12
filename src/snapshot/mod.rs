@@ -1,5 +1,6 @@
 use crate::error::AppError;
 use crate::executor::Action;
+use crate::hash::Checksum;
 use crate::scanner::scan;
 use chrono::{DateTime, FixedOffset, Local};
 use std::collections::{HashMap, HashSet};
@@ -68,7 +69,7 @@ impl FilePath {
 pub struct Snapshot {
     pub rootdir: PathBuf,
     generated_at: DateTime<FixedOffset>,
-    duplicates: HashMap<u64, Vec<FilePath>>,
+    duplicates: HashMap<Checksum, Vec<FilePath>>,
 }
 
 impl Snapshot {
@@ -80,7 +81,7 @@ impl Snapshot {
         let duplicates = scan(rootdir, excludes, quick)?
             .into_iter()
             .map(|(d, ps)| (d, ps.into_iter().map(FilePath::new).collect()))
-            .collect::<HashMap<u64, Vec<FilePath>>>();
+            .collect::<HashMap<Checksum, Vec<FilePath>>>();
         let snap = Snapshot {
             rootdir: rootdir.to_path_buf(),
             generated_at: Local::now().fixed_offset(),

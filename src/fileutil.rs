@@ -1,28 +1,14 @@
 use crate::error::AppError;
 use log::info;
-use sha2::{Digest as Sha2Digest, Sha256};
 use std::fs;
 use std::io::{self, Read};
 use std::path::{Path, PathBuf};
-use xxhash_rust::xxh3;
 
-fn file_contents_as_bytes<P: AsRef<Path>>(path: P) -> io::Result<Vec<u8>> {
+pub fn file_contents_as_bytes<P: AsRef<Path>>(path: P) -> io::Result<Vec<u8>> {
     let mut f = fs::File::open(path)?;
     let mut buf: Vec<u8> = Vec::new();
     f.read_to_end(&mut buf)?;
     Ok(buf)
-}
-
-pub fn file_contents_as_xxh3_64<P: AsRef<Path>>(path: &P) -> io::Result<u64> {
-    let data = file_contents_as_bytes(path)?;
-    let result = xxh3::xxh3_64(&data);
-    Ok(result)
-}
-
-pub fn file_contents_as_sha256<P: AsRef<Path>>(path: &P) -> io::Result<String> {
-    let data = file_contents_as_bytes(path)?;
-    let result = Sha256::digest(data);
-    Ok(format!("{:x}", result))
 }
 
 pub fn within_rootdir(rootdir: &PathBuf, path: &PathBuf) -> bool {

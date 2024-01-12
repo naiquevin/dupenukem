@@ -1,9 +1,9 @@
 use super::{FileOp, FilePath, Snapshot};
 use crate::error::AppError;
+use crate::hash::Checksum;
 use chrono::{DateTime, FixedOffset};
 use regex::Regex;
 use std::collections::HashMap;
-use std::num::ParseIntError;
 use std::path::PathBuf;
 
 #[derive(Debug, Eq, PartialEq)]
@@ -208,7 +208,7 @@ fn render_lines(snap: &Snapshot) -> Vec<Line> {
         ".       as 'keep' will be considered. If 'src' is not specified,",
         ".       a relative symlink will be created.",
         "",
-        "This section is a comment and will be ignored by the tool"
+        "This section is a comment and will be ignored by the tool",
     ];
 
     for help_line in help {
@@ -227,16 +227,12 @@ pub fn render(snap: &Snapshot) -> Vec<String> {
     result
 }
 
-fn str_to_hash(s: &str) -> Result<u64, ParseIntError> {
-    s.parse::<u64>()
-}
-
 pub fn parse(str_lines: Vec<String>) -> Result<Snapshot, AppError> {
     let lines = str_lines.iter().map(Line::decode);
     let mut rootdir: Option<PathBuf> = None;
     let mut generated_at: Option<DateTime<FixedOffset>> = None;
     let mut curr_group: Option<u64> = None;
-    let mut duplicates: HashMap<u64, Vec<FilePath>> = HashMap::new();
+    let mut duplicates: HashMap<Checksum, Vec<FilePath>> = HashMap::new();
     for line in lines {
         match &line {
             Ok(Line::Comment(_)) => continue,
@@ -249,7 +245,9 @@ pub fn parse(str_lines: Vec<String>) -> Result<Snapshot, AppError> {
                 }
             }
             Ok(Line::Checksum(hash)) => {
-                curr_group = str_to_hash(hash.as_str()).ok();
+                let parsed_checksum =
+                    Checksum::parse(hash.as_str()).map_err(|_| AppError::SnapshotParsing)?;
+                curr_group = Some(parsed_checksum.value())
             }
             Ok(Line::PathInfo {
                 path,
@@ -257,7 +255,7 @@ pub fn parse(str_lines: Vec<String>) -> Result<Snapshot, AppError> {
                 delim: _,
                 extra,
             }) => {
-                let group = curr_group.unwrap();
+                let group = Checksum::new(curr_group.unwrap());
                 let filepath = FilePath {
                     path: PathBuf::from(path),
                     op: FileOp::decode(op.as_str(), extra.as_ref().map(|s| s.as_str())).unwrap(),
@@ -547,7 +545,7 @@ mod tests {
         let snap: Snapshot = parse(lines).unwrap();
         assert_eq!(PathBuf::from("/foo"), snap.rootdir);
 
-        let d1 = str_to_hash("937219074347857651").unwrap();
+        let d1 = Checksum::parse("937219074347857651").unwrap();
         if let Some(fps) = snap.duplicates.get(&d1) {
             assert_eq!(3, fps.len());
             // 1st filepath
@@ -571,7 +569,7 @@ mod tests {
             assert!(false);
         }
 
-        let d2 = str_to_hash("8183168229739997842").unwrap();
+        let d2 = Checksum::parse("8183168229739997842").unwrap();
         if let Some(fps) = snap.duplicates.get(&d2) {
             assert_eq!(2, fps.len());
         }

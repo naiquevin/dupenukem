@@ -8,4 +8,5 @@ pub enum AppError {
     Cmd(String),
     Io(io::Error),
     Fs(String),
+    ChecksumParsing,
 }

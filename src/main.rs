@@ -12,6 +12,7 @@ use std::process;
 mod error;
 mod executor;
 mod fileutil;
+mod hash;
 mod ioutil;
 mod scanner;
 mod snapshot;
