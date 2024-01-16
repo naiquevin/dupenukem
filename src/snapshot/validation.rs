@@ -2,6 +2,7 @@ use super::{FileOp, FilePath, Snapshot};
 use crate::executor::Action;
 use crate::fileutil;
 use crate::hash::Checksum;
+use log::warn;
 use std::io;
 use std::path::PathBuf;
 
@@ -58,7 +59,23 @@ fn validate_group(hash: &Checksum, filepaths: &Vec<FilePath>) -> Result<(), Erro
     }
 }
 
-fn partially_validate_path_to_keep(filepath: &FilePath) -> Result<Action, Error> {
+fn validate_checksum(path: &PathBuf, expected_hash: &Checksum) -> Result<(), Error> {
+    let computed_hash = Checksum::of_file(path).map_err(Error::Io)?;
+    if computed_hash == *expected_hash {
+        Ok(())
+    } else {
+        Err(Error::ChecksumMismatch {
+            path: path.display().to_string(),
+            actual: format!("{}", computed_hash),
+            expected: format!("{}", expected_hash),
+        })
+    }
+}
+
+fn validate_path_to_keep<'a>(
+    filepath: &'a FilePath,
+    expected_hash: &Checksum,
+) -> Result<Action<'a>, Error> {
     let path = &filepath.path;
     if path.is_symlink() {
         // Path is a symlink (doesn't matter if it's broken)
@@ -68,6 +85,7 @@ fn partially_validate_path_to_keep(filepath: &FilePath) -> Result<Action, Error>
         )))
     } else if path.is_file() {
         // Path is a regular file
+        validate_checksum(&filepath.path, expected_hash)?;
         Ok(Action::Keep(&filepath.path))
     } else {
         // Path doesn't exist
@@ -114,20 +132,23 @@ fn verify_symlink_hash(
     Ok(src_hash == *target_hash)
 }
 
-fn partially_validate_path_to_symlink<'a>(
+fn validate_path_to_symlink<'a>(
     filepath: &'a FilePath,
     source: Option<&'a PathBuf>,
     default_source: &'a PathBuf,
-    hash: &Checksum,
+    expected_hash: &Checksum,
 ) -> Result<Action<'a>, Error> {
     let path = &filepath.path;
+
+    // Validate checksum of the file against the expected value
+    validate_checksum(path, expected_hash)?;
 
     // If source path is `Some` which means it's specified by the
     // user, verify that it's hash matches that of the group. This is
     // to prevent the user from specifying some other file as the
     // symlink source path (a common copy-paste mistake).
     if let Some(src) = source {
-        if !verify_symlink_hash(src, &filepath.path, hash)? {
+        if !verify_symlink_hash(src, &filepath.path, expected_hash)? {
             return Err(Error::OpNotPossible(format!(
                 "Hash mismatch for specified symlink source path: {} -> {}",
                 filepath.path.display(),
@@ -209,18 +230,32 @@ fn partially_validate_path_to_symlink<'a>(
     }
 }
 
-fn partially_validate_path_to_delete<'a>(filepath: &'a FilePath) -> Result<Action<'a>, Error> {
+fn validate_path_to_delete<'a>(
+    filepath: &'a FilePath,
+    expected_hash: &Checksum,
+) -> Result<Action<'a>, Error> {
     let path = &filepath.path;
-    // Check if the path exists and can be resolved if it's a symlink
-    match path.canonicalize() {
-        Ok(_) => Ok(Action::Delete {
-            path: &filepath.path,
-            is_no_op: false,
-        }),
-        Err(_) => Err(Error::OpNotAllowed(format!(
-            "Couldn't verify file marked for deletion: {}",
-            path.display()
-        ))),
+    if path.exists() {
+        match path.canonicalize() {
+            Ok(_) => {
+                // Verify that the hash matches
+                validate_checksum(path, expected_hash)?;
+                Ok(Action::Delete {
+                    path: &path,
+                    is_no_op: false,
+                })
+            }
+            Err(_) => Err(Error::OpNotAllowed(format!(
+                "Couldn't verify file marked for deletion: {}",
+                path.display()
+            ))),
+        }
+    } else {
+        warn!("Already deleted file will be ignored: {}", path.display());
+        Ok(Action::Delete {
+            path: &path,
+            is_no_op: true,
+        })
     }
 }
 
@@ -242,24 +277,14 @@ fn validate_path<'a>(
     }
 
     let action = match &filepath.op {
-        FileOp::Keep => partially_validate_path_to_keep(filepath)?,
+        FileOp::Keep => validate_path_to_keep(filepath, hash)?,
         FileOp::Symlink { source } => {
-            partially_validate_path_to_symlink(filepath, source.as_ref(), &keeper.path, hash)?
+            validate_path_to_symlink(filepath, source.as_ref(), &keeper.path, hash)?
         }
-        FileOp::Delete => partially_validate_path_to_delete(filepath)?,
+        FileOp::Delete => validate_path_to_delete(filepath, hash)?,
     };
 
-    let computed_hash = Checksum::of_file(&filepath.path).map_err(Error::Io)?;
-
-    if computed_hash == *hash {
-        Ok(action)
-    } else {
-        Err(Error::ChecksumMismatch {
-            path: path.display().to_string(),
-            actual: format!("{}", computed_hash),
-            expected: format!("{}", hash),
-        })
-    }
+    Ok(action)
 }
 
 pub fn validate(snap: &Snapshot) -> Result<Vec<Action>, Error> {
