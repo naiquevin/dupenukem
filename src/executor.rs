@@ -148,6 +148,15 @@ pub fn execute(
             action.execute(backup_dir, rootdir)?;
         }
     }
+    if *dry_run {
+        match backup_dir {
+            Some(d) => eprintln!(
+                "[DRY RUN] Backup will be stored under {}",
+                d.parent().unwrap().display()
+            ),
+            None => eprintln!("[DRY RUN] Backup is disabled (not recommended)"),
+        }
+    }
     Ok(())
 }
 
