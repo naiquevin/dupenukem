@@ -10,7 +10,7 @@ use std::path::{Path, PathBuf};
 pub mod textformat;
 pub mod validation;
 
-#[derive(Debug, PartialEq, Eq)]
+#[derive(Debug, PartialEq, Eq, Clone, PartialOrd, Ord)]
 enum FileOp {
     Keep,
     Symlink {
@@ -45,7 +45,7 @@ impl FileOp {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
 pub struct FilePath {
     path: PathBuf,
     op: FileOp,
