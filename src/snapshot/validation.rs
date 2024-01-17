@@ -324,15 +324,11 @@ fn validate_path<'a>(
 }
 
 pub fn validate(snap: &Snapshot) -> Result<Vec<Action>, Error> {
-    let mut actions: Vec<Action> = Vec::new();
-    if let Err(e) = validate_rootdir(&snap.rootdir) {
-        return Err(e);
-    }
+    validate_rootdir(&snap.rootdir)?;
 
+    let mut actions: Vec<Action> = Vec::new();
     for (hash, filepaths) in snap.duplicates.iter() {
-        if let Err(e) = validate_group(hash, filepaths) {
-            return Err(e);
-        }
+        validate_group(hash, filepaths)?;
 
         // As the call to `validate_group` must have validated that
         // there's at least one 'keep' entry, there's no need to
