@@ -106,11 +106,11 @@ impl Line {
                     .ok_or(AppError::SnapshotParsing)?
                     .as_str()
                     .to_owned();
-                if op == String::from("symlink") {
+                if op == "symlink" {
                     let parts: Vec<&str> = path
                         .split("->")
                         .map(|s| s.trim())
-                        .filter(|s| *s != "")
+                        .filter(|s| !s.is_empty())
                         .collect();
                     if parts.len() == 2 {
                         let target = String::from(parts[0]);
