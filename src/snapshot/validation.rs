@@ -38,13 +38,13 @@ fn validate_rootdir(path: &Path) -> Result<(), Error> {
 /// assumption in this app that in a valid snapshot, every group (of
 /// duplicates) must have at least 1 path marked as 'keep'. This
 /// function returns the first occurrence of FilePath marked 'keep'.
-fn find_keeper(filepaths: &Vec<FilePath>) -> Option<&FilePath> {
+fn find_keeper(filepaths: &[FilePath]) -> Option<&FilePath> {
     filepaths
         .iter()
         .find(|filepath| filepath.op == FileOp::Keep)
 }
 
-fn validate_group(hash: &Checksum, filepaths: &Vec<FilePath>) -> Result<(), Error> {
+fn validate_group(hash: &Checksum, filepaths: &[FilePath]) -> Result<(), Error> {
     let n = filepaths.len();
     if n <= 1 {
         return Err(Error::CorruptSnapshot(format!(

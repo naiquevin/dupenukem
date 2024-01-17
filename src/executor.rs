@@ -108,11 +108,11 @@ impl<'a> Action<'a> {
     }
 }
 
-pub fn pending_actions<'a>(actions: &'a Vec<Action>, include_no_op: bool) -> Vec<&'a Action<'a>> {
+pub fn pending_actions<'a>(actions: &'a [Action], include_no_op: bool) -> Vec<&'a Action<'a>> {
     actions
         .iter()
         .filter(|action| match action {
-            Action::Keep(_) => return false,
+            Action::Keep(_) => false,
             Action::Symlink {
                 is_no_op,
                 path: _,
