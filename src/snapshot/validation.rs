@@ -113,7 +113,7 @@ fn validate_path_to_keep<'a>(
 ///   - if the hash of the source file contents cannot be obtained for
 ///     any reason.
 ///
-fn verify_symlink_hash(
+fn verify_symlink_source_hash(
     source: &PathBuf,
     target: &PathBuf,
     target_hash: &Checksum,
@@ -132,6 +132,44 @@ fn verify_symlink_hash(
     Ok(src_hash == *target_hash)
 }
 
+/// Verifies if actual source path and intended source path are the same.
+///
+/// This function is relevant only in the case where the file is
+/// marked "symlink" and is already a symlink. In this case, we need
+/// to make sure that both are the same before nooping.
+fn verify_symlink_source_path(
+    intended_source: &PathBuf,
+    actual_source: &PathBuf,
+    target: &PathBuf,
+    is_explicit: bool,
+) -> Result<bool, Error> {
+    let is_intended_abs = intended_source.is_absolute();
+    let is_actual_abs = actual_source.is_absolute();
+    if is_explicit || (is_intended_abs && is_actual_abs) {
+        // Compare the paths directly if,
+        //   - intended is explicitly specified, or
+        //   - both are absolute
+        Ok(*intended_source == *actual_source)
+    } else if is_intended_abs && !is_actual_abs {
+        // If intended is absolute but actual is relative, then
+        // convert actual to absolute and compare
+        let p = target
+            .parent()
+            .unwrap()
+            .join(actual_source)
+            .canonicalize()
+            .map_err(Error::Io)?;
+        Ok(*intended_source == *p)
+    } else {
+        // The remaining case is - intended is relative (whereas
+        // actual may or may not be relative). Unless there's a bug,
+        // this case is not expected to occur
+        Err(Error::OpNotAllowed(format!(
+            "Implicit intended source path cannot be relative"
+        )))
+    }
+}
+
 fn validate_path_to_symlink<'a>(
     filepath: &'a FilePath,
     source: Option<&'a PathBuf>,
@@ -148,7 +186,7 @@ fn validate_path_to_symlink<'a>(
     // to prevent the user from specifying some other file as the
     // symlink source path (a common copy-paste mistake).
     if let Some(src) = source {
-        if !verify_symlink_hash(src, &filepath.path, expected_hash)? {
+        if !verify_symlink_source_hash(src, &filepath.path, expected_hash)? {
             return Err(Error::OpNotPossible(format!(
                 "Hash mismatch for specified symlink source path: {} -> {}",
                 filepath.path.display(),
@@ -190,7 +228,12 @@ fn validate_path_to_symlink<'a>(
             // path derived above. If yes, it's a no-op. Otherwise,
             // it's an error (operation not allowed)
             Ok(actual_src_path) => {
-                if *intended_src_path == actual_src_path {
+                if verify_symlink_source_path(
+                    intended_src_path,
+                    &actual_src_path,
+                    path,
+                    is_explicit,
+                )? {
                     Ok(Action::Symlink {
                         path: &filepath.path,
                         source: intended_src_path,
@@ -312,4 +355,145 @@ pub fn validate(snap: &Snapshot) -> Result<Vec<Action>, Error> {
     }
 
     Ok(actions)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use serial_test::serial;
+    use std::fs;
+    use std::path::Path;
+
+    #[test]
+    fn test_verify_symlink_source_path_parallel() {
+        let t = PathBuf::from("/private/tmp/bar/current");
+        // Cases:
+        //
+        // is_explicit           : true|false
+        // intended source type  : abs|rel
+        // actual source type    : abs|rel
+
+        // (true, abs, abs)
+        let i = PathBuf::from("/private/tmp/foo/1.txt");
+        // when both paths match
+        let a = PathBuf::from("/private/tmp/foo/1.txt");
+        match verify_symlink_source_path(&i, &a, &t, true) {
+            Ok(b) => assert!(b),
+            Err(_) => assert!(false),
+        }
+        // when paths don't match
+        let b = PathBuf::from("/private/tmp/bar/1.txt");
+        match verify_symlink_source_path(&i, &b, &t, true) {
+            Ok(b) => assert!(!b),
+            Err(_) => assert!(false),
+        }
+
+        // (true, abs, rel)
+        let i = PathBuf::from("/private/tmp/foo/1.txt");
+        let a = PathBuf::from("../foo/1.txt");
+        match verify_symlink_source_path(&i, &a, &t, true) {
+            Ok(b) => assert!(!b),
+            Err(_) => assert!(false),
+        }
+
+        // (true, rel, rel)
+        let i = PathBuf::from("../foo/1.txt");
+        // when both paths match
+        let a = PathBuf::from("../foo/1.txt");
+        match verify_symlink_source_path(&i, &a, &t, true) {
+            Ok(b) => assert!(b),
+            Err(_) => assert!(false),
+        }
+        // when paths don't match
+        let b = PathBuf::from("../bar/1.txt");
+        match verify_symlink_source_path(&i, &b, &t, true) {
+            Ok(b) => assert!(!b),
+            Err(_) => assert!(false),
+        }
+
+        // (true, rel, abs)
+        let i = PathBuf::from("../foo/1.txt");
+        let a = PathBuf::from("foo/1.txt");
+        match verify_symlink_source_path(&i, &a, &t, true) {
+            Ok(b) => assert!(!b),
+            Err(_) => assert!(false),
+        }
+
+        // (false, abs, abs)
+        let i = PathBuf::from("/private/tmp/foo/1.txt");
+        // when both paths match
+        let a = PathBuf::from("/private/tmp/foo/1.txt");
+        match verify_symlink_source_path(&i, &a, &t, false) {
+            Ok(b) => assert!(b),
+            Err(_) => assert!(false),
+        }
+        // when paths don't match
+        let b = PathBuf::from("/private/tmp/bar/1.txt");
+        match verify_symlink_source_path(&i, &b, &t, false) {
+            Ok(b) => assert!(!b),
+            Err(_) => assert!(false),
+        }
+
+        // (false, abs, rel) <- This test case needs some files to be
+        // actually created. Hence it's added as a separate test case
+        // `test_verify_symlink_source_path_serial` which is
+        // configured to run serially.
+
+        // (false, rel, rel) <- exceptional case not expected unless
+        // there's a bug
+        let i = PathBuf::from("../foo/1.txt");
+        let a = PathBuf::from("../foo/1.txt");
+        assert!(verify_symlink_source_path(&i, &a, &t, false).is_err());
+
+        // (false, rel, abs) <- exceptional case not expected unless
+        // there's a bug
+        let i = PathBuf::from("../foo/1.txt");
+        let a = PathBuf::from("/tmp/foo/1.txt");
+        assert!(verify_symlink_source_path(&i, &a, &t, false).is_err());
+    }
+
+    #[test]
+    #[serial]
+    fn test_verify_symlink_source_path_serial() {
+        let test_data_dir = Path::new(".tmp-test-data");
+        // cleanup old test dir in case required
+        fs::remove_dir_all(".tmp-test-data").unwrap_or(());
+        // create test dir
+        fs::create_dir(test_data_dir).expect("Couldn't create test data dir");
+        let test_data_dir_abs = test_data_dir.canonicalize().unwrap();
+
+        // Create target dir (no need to create target file)
+        let target = test_data_dir_abs.join("bar/current");
+        fs::create_dir(target.parent().unwrap()).unwrap();
+
+        // Create a file (which will be the actual symlink source
+        // path)
+        let actual = test_data_dir.join("foo/1.txt");
+        fs::create_dir(actual.parent().unwrap()).unwrap();
+        fs::write(&actual, "Foo 1").unwrap();
+        let actual_abs = actual.canonicalize().unwrap();
+
+        // Create a file (incorrect symlink source path to test the
+        // mismatch case)
+        let incorrect = test_data_dir.join("cat/1.txt");
+        fs::create_dir(incorrect.parent().unwrap()).unwrap();
+        fs::write(&incorrect, "Cat 1").unwrap();
+
+        let i = actual_abs;
+        // when both paths match
+        let a = PathBuf::from("../foo/1.txt");
+        match verify_symlink_source_path(&i, &a, &target, false) {
+            Ok(b) => assert!(b),
+            Err(_e) => assert!(false),
+        }
+        // when paths don't match
+        let b = PathBuf::from("../cat/1.txt");
+        match verify_symlink_source_path(&i, &b, &target, false) {
+            Ok(b) => assert!(!b),
+            Err(_) => assert!(false),
+        }
+
+        // teardown
+        fs::remove_dir_all(".tmp-test-data").unwrap();
+    }
 }
