@@ -207,14 +207,6 @@ fn validate_path_to_symlink<'a>(
         )));
     }
 
-    // // Here we also derive whether the source path should be relative
-    // // or absolute. If it's specified by the user, consider that else
-    // // assume relative.
-    // let is_sym_relative = match source {
-    //     Some(p) => p.is_relative(),
-    //     None => true,
-    // };
-
     let is_explicit = source.is_some();
 
     if path.is_symlink() {
