@@ -228,6 +228,17 @@ mod tests {
         fs::remove_dir_all(TEST_DATA_DIR).unwrap();
     }
 
+    fn new_file<P: AsRef<Path>>(rel_path: P, contents: &str) -> PathBuf {
+        let path = PathBuf::from(TEST_FIXTURES_DIR).join(rel_path);
+        fs::create_dir_all(path.parent().unwrap()).unwrap();
+        fs::write(&path, contents).unwrap();
+        path
+    }
+
+    fn file_contents<P: AsRef<Path>>(path: P) -> String {
+        fs::read_to_string(path).expect("Unable to read file")
+    }
+
     #[test]
     fn test_normalize_path() {
         let base_dir = PathBuf::from("/root/mydir");
@@ -288,17 +299,6 @@ mod tests {
             Ok(_) => assert!(false),
             Err(_) => assert!(true),
         }
-    }
-
-    fn new_file<P: AsRef<Path>>(rel_path: P, contents: &str) -> PathBuf {
-        let path = PathBuf::from(TEST_FIXTURES_DIR).join(rel_path);
-        fs::create_dir_all(path.parent().unwrap()).unwrap();
-        fs::write(&path, contents).unwrap();
-        path
-    }
-
-    fn file_contents<P: AsRef<Path>>(path: P) -> String {
-        fs::read_to_string(path).expect("Unable to read file")
     }
 
     #[test]
