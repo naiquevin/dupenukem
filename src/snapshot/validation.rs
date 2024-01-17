@@ -36,7 +36,8 @@ fn validate_rootdir(path: &PathBuf) -> Result<(), Error> {
 
 /// A "keeper" is a FilePath that's marked as 'keep'. There's a global
 /// assumption in this app that in a valid snapshot, every group (of
-/// duplicates) must have at least 1 path marked as 'keep'
+/// duplicates) must have at least 1 path marked as 'keep'. This
+/// function returns the first occurrence of FilePath marked 'keep'.
 fn find_keeper(filepaths: &Vec<FilePath>) -> Option<&FilePath> {
     filepaths
         .iter()

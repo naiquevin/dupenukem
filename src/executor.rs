@@ -64,7 +64,6 @@ impl<'a> Action<'a> {
         }
     }
 
-    #[allow(dead_code, unused)]
     fn execute(&self, backup_dir: Option<&PathBuf>, rootdir: &PathBuf) -> Result<(), AppError> {
         match self {
             Self::Keep(_) => Ok(()),
