@@ -177,7 +177,7 @@ fn cmd_apply(
                 }
             }
         }
-        executor::execute(actions, &dry_run, Some(&backup_dir_path), &snapshot.rootdir)
+        executor::execute(actions, dry_run, Some(backup_dir_path), &snapshot.rootdir)
     })
 }
 

@@ -91,6 +91,6 @@ impl Snapshot {
     }
 
     pub fn validate(&self) -> Result<Vec<Action>, AppError> {
-        validation::validate(&self).map_err(AppError::SnapshotValidation)
+        validation::validate(self).map_err(AppError::SnapshotValidation)
     }
 }

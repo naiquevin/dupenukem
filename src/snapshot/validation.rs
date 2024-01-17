@@ -277,7 +277,7 @@ fn validate_path_to_delete<'a>(
                 // Verify that the hash matches
                 validate_checksum(path, expected_hash)?;
                 Ok(Action::Delete {
-                    path: &path,
+                    path,
                     is_no_op: false,
                 })
             }
@@ -289,7 +289,7 @@ fn validate_path_to_delete<'a>(
     } else {
         warn!("Already deleted file will be ignored: {}", path.display());
         Ok(Action::Delete {
-            path: &path,
+            path,
             is_no_op: true,
         })
     }
@@ -305,7 +305,7 @@ fn validate_path<'a>(
 
     // If the path is external to the rootdir, return an error right
     // away
-    if !fileutil::within_rootdir(rootdir, &path) {
+    if !fileutil::within_rootdir(rootdir, path) {
         return Err(Error::CorruptSnapshot(format!(
             "Path {} is external to the rootdir",
             path.display()

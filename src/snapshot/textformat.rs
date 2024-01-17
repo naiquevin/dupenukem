@@ -53,14 +53,14 @@ impl Line {
         let mut characters = cleaned.chars();
         match &characters.next() {
             Some('#') => {
-                if let None = &characters.next() {
+                if characters.next().is_none() {
                     // Fist check if it's an empty, comment and handle
                     // it. Otherwise the `&cleaned[..2]` in the next
                     // condition could panic.
                     Ok(Self::Comment("".to_owned()))
                 } else if &cleaned[..2] == "#!" {
                     let re = Regex::new(r"^#!\s*([^:]+):\s*(.+)$").unwrap();
-                    let caps = re.captures(&cleaned).ok_or(AppError::SnapshotParsing)?;
+                    let caps = re.captures(cleaned).ok_or(AppError::SnapshotParsing)?;
                     let key = caps
                         .get(1)
                         .ok_or(AppError::SnapshotParsing)?
@@ -74,7 +74,7 @@ impl Line {
                     Ok(Self::MetaData { key, val })
                 } else {
                     let re = Regex::new(r"^#\s(.+)$").unwrap();
-                    let caps = re.captures(&cleaned).ok_or(AppError::SnapshotParsing)?;
+                    let caps = re.captures(cleaned).ok_or(AppError::SnapshotParsing)?;
                     let comment = caps
                         .get(1)
                         .ok_or(AppError::SnapshotParsing)?
@@ -85,7 +85,7 @@ impl Line {
             }
             Some('[') => {
                 let re = Regex::new(r"^\[([^\]]+)\]").unwrap();
-                let caps = re.captures(&cleaned).ok_or(AppError::SnapshotParsing)?;
+                let caps = re.captures(cleaned).ok_or(AppError::SnapshotParsing)?;
                 let hash = caps
                     .get(1)
                     .ok_or(AppError::SnapshotParsing)?
@@ -95,7 +95,7 @@ impl Line {
             }
             Some(_) => {
                 let re = Regex::new(r"^(keep|symlink|delete)\s(.+)$").unwrap();
-                let caps = re.captures(&cleaned).ok_or(AppError::SnapshotParsing)?;
+                let caps = re.captures(cleaned).ok_or(AppError::SnapshotParsing)?;
                 let op = caps
                     .get(1)
                     .ok_or(AppError::SnapshotParsing)?
