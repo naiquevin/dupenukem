@@ -6,7 +6,7 @@ use dirs::home_dir;
 use inquire::Confirm;
 use log::{debug, info};
 use std::collections::HashSet;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::process;
 
 mod error;
@@ -64,11 +64,7 @@ struct Cli {
     command: Option<Command>,
 }
 
-fn cmd_find(
-    rootdir: &PathBuf,
-    exclude: Option<&Vec<String>>,
-    quick: &bool,
-) -> Result<(), AppError> {
+fn cmd_find(rootdir: &Path, exclude: Option<&Vec<String>>, quick: &bool) -> Result<(), AppError> {
     let rootdir = if !rootdir.is_absolute() {
         info!("Relative path found for the specified rootdir. Normalizing it to absolute path");
         rootdir.canonicalize().map_err(AppError::Io)?

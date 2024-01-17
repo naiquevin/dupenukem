@@ -47,7 +47,7 @@ fn traverse_bfs(dirpath: &Path, excludes: Option<&HashSet<PathBuf>>) -> io::Resu
 // May panic if the rootdir is a broken symlink. But since we can
 // assume that rootdir is already verified before this point, it's ok
 // to skip error handling for that case.
-fn is_path_valid(rootdir: &Path, path: &PathBuf) -> bool {
+fn is_path_valid(rootdir: &Path, path: &Path) -> bool {
     if path.is_symlink() {
         match path.canonicalize() {
             Ok(t) => {
@@ -150,7 +150,7 @@ fn confirm_dups(
 
 fn group_duplicates<'a>(
     rootdir: &Path,
-    paths: &'a Vec<PathBuf>,
+    paths: &'a [PathBuf],
     quick: &bool,
 ) -> io::Result<HashMap<Checksum, Vec<&'a PathBuf>>> {
     let valid_paths = paths

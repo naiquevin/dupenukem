@@ -4,7 +4,7 @@ use crate::fileutil;
 use crate::hash::Checksum;
 use log::warn;
 use std::io;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 
 #[derive(Debug)]
 pub enum Error {
@@ -20,7 +20,7 @@ pub enum Error {
     Io(io::Error),
 }
 
-fn validate_rootdir(path: &PathBuf) -> Result<(), Error> {
+fn validate_rootdir(path: &Path) -> Result<(), Error> {
     match path.try_exists() {
         Ok(true) => Ok(()),
         Ok(false) => Err(Error::RootDir(format!(
@@ -115,8 +115,8 @@ fn validate_path_to_keep<'a>(
 ///     any reason.
 ///
 fn verify_symlink_source_hash(
-    source: &PathBuf,
-    target: &PathBuf,
+    source: &Path,
+    target: &Path,
     target_hash: &Checksum,
 ) -> Result<bool, Error> {
     let src_hash = if source.is_absolute() {
@@ -139,9 +139,9 @@ fn verify_symlink_source_hash(
 /// marked "symlink" and is already a symlink. In this case, we need
 /// to make sure that both are the same before nooping.
 fn verify_symlink_source_path(
-    intended_source: &PathBuf,
-    actual_source: &PathBuf,
-    target: &PathBuf,
+    intended_source: &Path,
+    actual_source: &Path,
+    target: &Path,
     is_explicit: bool,
 ) -> Result<bool, Error> {
     let is_intended_abs = intended_source.is_absolute();
@@ -296,7 +296,7 @@ fn validate_path_to_delete<'a>(
 }
 
 fn validate_path<'a>(
-    rootdir: &PathBuf,
+    rootdir: &Path,
     hash: &Checksum,
     filepath: &'a FilePath,
     keeper: &'a FilePath,
@@ -355,7 +355,6 @@ mod tests {
     use super::*;
     use serial_test::serial;
     use std::fs;
-    use std::path::Path;
 
     #[test]
     fn test_verify_symlink_source_path_parallel() {

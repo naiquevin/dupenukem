@@ -5,7 +5,7 @@ use crate::scanner::scan;
 use chrono::{DateTime, FixedOffset, Local};
 use std::collections::{HashMap, HashSet};
 use std::io;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 
 pub mod textformat;
 pub mod validation;
@@ -74,7 +74,7 @@ pub struct Snapshot {
 
 impl Snapshot {
     pub fn of_rootdir(
-        rootdir: &PathBuf,
+        rootdir: &Path,
         excludes: Option<&HashSet<PathBuf>>,
         quick: &bool,
     ) -> io::Result<Snapshot> {

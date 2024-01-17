@@ -12,8 +12,8 @@ pub fn file_contents_as_bytes<P: AsRef<Path>>(path: P) -> io::Result<Vec<u8>> {
     Ok(buf)
 }
 
-pub fn within_rootdir(rootdir: &PathBuf, path: &PathBuf) -> bool {
-    path.ancestors().find(|d| *d == rootdir).is_some()
+pub fn within_rootdir(rootdir: &Path, path: &Path) -> bool {
+    path.ancestors().any(|d| d == rootdir)
 }
 
 /// Computes normalized path depending on whether it is expected to be
@@ -85,7 +85,7 @@ pub fn normalize_path(
 /// This function assumes that `target` is an absolute path and
 /// panics if that's not the case
 pub fn normalize_symlink_src_path(
-    target: &PathBuf,
+    target: &Path,
     source: &PathBuf,
     is_explicit: bool,
 ) -> Result<PathBuf, AppError> {
@@ -133,17 +133,13 @@ pub fn normalize_symlink_src_path(
 ///   - `AppError::Io` if there's an error writing to the backup
 ///      directory.
 ///
-fn take_backup(
-    path: &PathBuf,
-    backup_dir: &PathBuf,
-    base_dir: &PathBuf,
-) -> Result<PathBuf, AppError> {
+fn take_backup(path: &Path, backup_dir: &Path, base_dir: &Path) -> Result<PathBuf, AppError> {
     // Find path relative to the rootdir
     let rel_path = path
-        .strip_prefix(&base_dir)
+        .strip_prefix(base_dir)
         .map_err(|_| AppError::Fs(String::from("Could not find path relative to the base dir")))?;
     let backup_path = backup_dir.join(rel_path);
-    fs::create_dir_all(&backup_path.parent().unwrap()).map_err(AppError::Io)?;
+    fs::create_dir_all(backup_path.parent().unwrap()).map_err(AppError::Io)?;
     fs::copy(path, &backup_path).map_err(AppError::Io)?;
     info!(
         "Backing up {} under {}",
@@ -168,9 +164,9 @@ fn take_backup(
 ///   - If there is an error while deleting the file
 ///
 pub fn delete_file(
-    path: &PathBuf,
+    path: &Path,
     backup_dir: Option<&PathBuf>,
-    base_dir: &PathBuf,
+    base_dir: &Path,
 ) -> Result<(), AppError> {
     if let Some(bd) = backup_dir {
         take_backup(path, bd, base_dir)?;
@@ -193,10 +189,10 @@ pub fn delete_file(
 ///   - If there's an error when creating the symlink
 ///
 pub fn replace_with_symlink(
-    path: &PathBuf,
-    source_path: &PathBuf,
+    path: &Path,
+    source_path: &Path,
     backup_dir: Option<&PathBuf>,
-    base_dir: &PathBuf,
+    base_dir: &Path,
 ) -> Result<(), AppError> {
     // First delete the existing path (with backup if applicable)
     delete_file(path, backup_dir, base_dir)?;
