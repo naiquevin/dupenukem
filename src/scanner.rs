@@ -15,25 +15,18 @@ fn traverse_bfs(dirpath: &Path, excludes: Option<&HashSet<PathBuf>>) -> io::Resu
     let mut queue: VecDeque<PathBuf> = VecDeque::new();
     let mut result: Vec<PathBuf> = Vec::new();
     queue.push_back(dirpath.to_path_buf());
-    loop {
-        match queue.pop_front() {
-            Some(p) => {
-                for entry in fs::read_dir(p)? {
-                    let ep = entry?.path();
-                    if excludes.is_some_and(|s| s.contains(&ep)) {
-                        continue;
-                    } else if ep.is_dir() {
-                        queue.push_back(ep);
-                    } else {
-                        result.push(ep);
-                    }
-                }
-            }
-            None => {
-                break;
+    while let Some(p) = queue.pop_front() {
+        for entry in fs::read_dir(p)? {
+            let ep = entry?.path();
+            if excludes.is_some_and(|s| s.contains(&ep)) {
+                continue;
+            } else if ep.is_dir() {
+                queue.push_back(ep);
+            } else {
+                result.push(ep);
             }
         }
-    }
+        }
     Ok(result)
 }
 
@@ -76,13 +69,11 @@ fn is_path_valid(rootdir: &Path, path: &Path) -> bool {
                 false
             }
         }
+    } else if path.ends_with("Icon\r") {
+        warn!("Skipping Icon\\r files (macOS): {:?}", path.display());
+        false
     } else {
-        if path.ends_with("Icon\r") {
-            warn!("Skipping Icon\\r files (macOS): {:?}", path.display());
-            false
-        } else {
-            true
-        }
+        true
     }
 }
 

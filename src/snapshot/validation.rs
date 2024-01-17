@@ -165,9 +165,9 @@ fn verify_symlink_source_path(
         // The remaining case is - intended is relative (whereas
         // actual may or may not be relative). Unless there's a bug,
         // this case is not expected to occur
-        Err(Error::OpNotAllowed(format!(
-            "Implicit intended source path cannot be relative"
-        )))
+        Err(Error::OpNotAllowed(
+            "Implicit intended source path cannot be relative".to_string(),
+        ))
     }
 }
 
@@ -342,7 +342,6 @@ pub fn validate(snap: &Snapshot) -> Result<Vec<Action>, Error> {
             }
         }
     }
-
     Ok(actions)
 }
 

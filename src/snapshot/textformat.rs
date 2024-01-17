@@ -48,7 +48,7 @@ impl Line {
         }
     }
 
-    fn decode(s: &String) -> Result<Self, AppError> {
+    fn decode(s: &str) -> Result<Self, AppError> {
         let cleaned = s.trim();
         let mut characters = cleaned.chars();
         match &characters.next() {
@@ -237,7 +237,7 @@ pub fn render(snap: &Snapshot) -> Vec<String> {
 }
 
 pub fn parse(str_lines: Vec<String>) -> Result<Snapshot, AppError> {
-    let lines = str_lines.iter().map(Line::decode);
+    let lines = str_lines.iter().map(|s| Line::decode(s.as_str()));
     let mut rootdir: Option<PathBuf> = None;
     let mut generated_at: Option<DateTime<FixedOffset>> = None;
     let mut curr_group: Option<u64> = None;
