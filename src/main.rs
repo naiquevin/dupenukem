@@ -60,6 +60,8 @@ enum Command {
 #[derive(Parser)]
 #[command(version, about)]
 struct Cli {
+    #[arg(short, global = true, action = clap::ArgAction::Count, help = "Verbosity level (can be specified multiple times)")]
+    verbose: u8,
     #[command(subcommand)]
     command: Option<Command>,
 }
@@ -181,8 +183,19 @@ fn cmd_apply(
     })
 }
 
+fn init_logging(verbosity: u8) {
+    let log_level = match verbosity {
+        1 => "info",
+        2 => "debug",
+        _ => "warn",
+    };
+    let env = env_logger::Env::default().default_filter_or(log_level);
+    env_logger::Builder::from_env(env).init()
+}
+
 impl Cli {
     fn execute(&self) -> Result<(), AppError> {
+        init_logging(self.verbose);
         match &self.command {
             Some(Command::Find {
                 exclude,
@@ -205,7 +218,6 @@ impl Cli {
 }
 
 fn main() {
-    env_logger::init();
     let cli = Cli::parse();
     let result = cli.execute();
     match result {
