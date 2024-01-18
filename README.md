@@ -1,20 +1,21 @@
 Dupenukem
 =========
 
-Dupenukem is a simple command line utility for file de-duplication.
+Dupenukem is a simple command line utility for file deduplication.
 
 :warning: Warning
 -----------------
 
 This is a personal project for learning and experimenting with the
-[Rust programming language](https://www.rust-lang.org/). It's not
-really performant. (At present) It doesn't support Windows. Moreover,
-it's designed to perform destructive operations such as deleting files
-from your computer. Please use with caution.
+[Rust programming language](https://www.rust-lang.org/). It doesn't
+claim to be fast or efficient by any means. It doesn't support Windows
+(at present). Moreover, it's designed to perform destructive
+operations such as deleting files from your computer. Please use with
+caution.
 
-If you're looking for a serious file de-duplicator, there are highly
-performant and popular alternatives such as
-[fclones](https://github.com/pkolaczk/fclones).
+If you're looking for a serious file deduplication software there is
+[fclones](https://github.com/pkolaczk/fclones) which is highly
+performant and popular. There must be other alternatives too.
 
 Having said that, I've used it to clean my Dropbox folder and a couple
 of external hard drives. I do plan to ship features and improvements
@@ -46,7 +47,7 @@ using `cargo`.
 Usage
 -----
 
-`dupenukem` provides three commands for a three step de-duplication
+`dupenukem` provides three commands for a three step deduplication
 workflow:
 
 <h3>Step 1: Finding duplicates and generating a snapshot</h3>
@@ -388,7 +389,7 @@ symlink (target) and not relative to the root directory.
 For most use cases, relative symlinks are desirable. Hence the default
 behaviour (in case of implicit symlinks) is to use relative source
 paths. But absolute symlinks are also supported - the user just needs
-to explicitly mentioning the absolute source path, similar to the
+to explicitly specify the absolute source path, similar to the
 previous example:
 
 ``` text
@@ -402,7 +403,7 @@ previous example:
     [..snip..]
 ```
 
-On running apply, `bar/1.txt` will be replaced with a symlink to an
+On running apply, `bar/1.txt` will be replaced with a symlink to the
 absolute source path.
 
 ``` shell
@@ -443,8 +444,8 @@ manner) and then finds duplicate files in 3 steps:
    well. This confirmation is optional but enabled by default. To
    disable it, the `--quick` flag can be used with the `find` command.
 
-TODO
-----
+Future improvements
+-------------------
 
 - Improve the `exclude` functionality - support exclusions based on
   glob/patterns as well as min/max sizes (similar to rsync)
