@@ -185,9 +185,9 @@ fn cmd_apply(
 
 fn init_logging(verbosity: u8) {
     let log_level = match verbosity {
+        0 => "warn",
         1 => "info",
-        2 => "debug",
-        _ => "warn",
+        _ => "debug",
     };
     let env = env_logger::Env::default().default_filter_or(log_level);
     env_logger::Builder::from_env(env).init()
