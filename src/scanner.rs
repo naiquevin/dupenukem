@@ -26,7 +26,7 @@ fn traverse_bfs(dirpath: &Path, excludes: Option<&HashSet<PathBuf>>) -> io::Resu
                 result.push(ep);
             }
         }
-        }
+    }
     Ok(result)
 }
 

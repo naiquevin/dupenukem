@@ -495,23 +495,23 @@ mod tests {
         let fps = vec![
             FilePath {
                 path: PathBuf::from("d.txt"),
-                op: FileOp::Keep
+                op: FileOp::Keep,
             },
             FilePath {
                 path: PathBuf::from("a.txt"),
-                op: FileOp::Delete
+                op: FileOp::Delete,
             },
             FilePath {
                 path: PathBuf::from("b.txt"),
-                op: FileOp::Keep
+                op: FileOp::Keep,
             },
             FilePath {
                 path: PathBuf::from("c.txt"),
-                op: FileOp::Keep
+                op: FileOp::Keep,
             },
             FilePath {
                 path: PathBuf::from("e.txt"),
-                op: FileOp::Delete
+                op: FileOp::Delete,
             },
         ];
         assert_eq!(Some(&fps[2]), find_keeper(&fps));
@@ -519,14 +519,13 @@ mod tests {
         let fps = vec![
             FilePath {
                 path: PathBuf::from("d.txt"),
-                op: FileOp::Delete
+                op: FileOp::Delete,
             },
             FilePath {
                 path: PathBuf::from("a.txt"),
-                op: FileOp::Delete
+                op: FileOp::Delete,
             },
         ];
         assert!(find_keeper(&fps).is_none());
     }
-
 }
