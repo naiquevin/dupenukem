@@ -36,7 +36,7 @@ jobs:
         run: cargo test -- --nocapture
 
   check-linux:
-    name: Run tests on linux (ubuntu)
+    name: Run checks on linux (ubuntu)
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v3
@@ -51,7 +51,7 @@ jobs:
         run: cargo clippy -- -D warnings
 
   check-macos:
-    name: Run tests on MacOS
+    name: Run checks on MacOS
     runs-on: macos-latest
     steps:
       - uses: actions/checkout@v3
