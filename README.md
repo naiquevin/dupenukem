@@ -17,9 +17,10 @@ If you're looking for a serious file deduplication software there is
 [fclones](https://github.com/pkolaczk/fclones) which is highly
 performant and popular. There must be other alternatives too.
 
-Having said that, I've used it to clean my Dropbox folder and a couple
-of external hard drives. I do plan to ship features and improvements
-based on my use case, or just use as an opportunity to code in rust.
+Having said that, I've used `dupenukem` to clean my Dropbox folder and
+a couple of external hard drives. I plan to ship features and
+improvements based on my use case, or just use as an opportunity to
+code in rust.
 
 It has been tested only on MacOS, although it should theoretically
 work on Linux too. As I don't have access to a Windows machine, there
@@ -102,15 +103,15 @@ The apply command is also idempotent i.e. if run multiple times, the
 already applied changes will be skipped. More accurately, the `apply`
 command tries to get the files into the intended state indicated by
 the action marker. If a file is already in that state, it will no-op
-and move on. This way, the user can incrementally fix and verify one
+and move on. This way, the user may incrementally fix and verify one
 group of duplicates or even one file at a time.
 
 Example
 -------
 
 It's easier to explain the usage in detail with the help of an
-example. For that let's first create some fake data i.e. a directory
-with a few duplicate files.
+example. For that let's first create a dummy directory with a few
+duplicate files.
 
 ``` shell
     mkdir ~/dpnktest
@@ -238,7 +239,7 @@ After making the above changes, we should validate the snapshot file.
 ```
 
 Before proceeding with the `apply` command, let's consider the case
-where some other process modified the `bar/1.txt` file in the
+where some other process modifies the `bar/1.txt` file in the
 meanwhile. Then the `validate` command would fail as `bar/1.txt` would
 no longer be a duplicate of `foo/1.txt`.
 
@@ -256,9 +257,9 @@ will happen:
 
 Notice the last line that mentions the backup location inside
 `~/.dupenukem/backups`. It's assumed that the current user has
-permissions to write to this location. Backup files will be created
-under a new directory under this location, with filename derived from
-the current timestamp. This will ensure that multiple backups can
+permissions to write to this location. Backups will be taken inside a
+new directory under this location, with the dir name derived from the
+current timestamp. This will ensure that multiple backups can
 coexist. This also implies that it's up to the user to cleanup older
 backups that are no longer required. The user can also choose to
 override the backup directory by specifying the `--backup-dir` option.
@@ -291,9 +292,10 @@ now using the same `tree` command:
     4 directories, 5 files
 ```
 
+And the desired changes can be seen.
+
 The backup can be found under the default backup directory
-`~/.dupenukem/backups`. Notice the dir name derived from timestamp and
-that the directory structure is preserved.
+`~/.dupenukem/backups`.
 
 ``` shell
     $ tree --charset=ascii ~/.dupenukem/backups
@@ -306,6 +308,12 @@ that the directory structure is preserved.
 
     4 directories, 2 files
 ```
+
+Notice the dir name derived from timestamp and that the directory
+structure is preserved. After verifying the changes, if the user
+wishes to restore any files, it can be done easily. If everything
+looks good, they may easily delete the backup dir
+`~/.dupenukem/backups/20240116160509`.
 
 The `apply` command is idempotent i.e. if we try running the `apply`
 command once again, it will no-op.
@@ -451,11 +459,10 @@ Future improvements
   glob/patterns as well as min/max sizes (similar to rsync)
 - Use async programming where applicable
 - Add support for hardlinks
-- Test on linux
-- May be support windows
+- Add commands backup management - restoring, clean up etc.
+- May be support Windows at some point
 
 License
 -------
 
 MIT (See [LICENSE](LICENSE)).
-
