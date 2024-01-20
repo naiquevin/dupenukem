@@ -57,7 +57,7 @@ Usage
 `dupenukem` provides three commands for a three step deduplication
 workflow:
 
-<h3>Step 1: Finding duplicates and generating a snapshot</h3>
+### Step 1: Finding duplicates and generating a snapshot
 
 The `find` command accepts a `rootdir` and finds all duplicate files
 under it. The output is what is called a "snapshot". This is nothing
@@ -68,7 +68,7 @@ and users must store it inside a file.
 The snapshot format is explained in detail later in the example
 section.
 
-<h3>Step 2: Editing the snapshot and validating changes</h3>
+### Step 2: Editing the snapshot and validating changes
 
 Once the snapshot file is generated, the user is supposed to edit it
 in order to tell this tool what should be done with the duplicate
@@ -85,7 +85,7 @@ changes w.r.t the current state of the files. This is to protect
 against data loss in case any changes get made to a previously
 identified duplicate file.
 
-<h3>Step 3: Applying the changes</h3>
+### Step 3: Applying the changes
 
 Once a user-edited snapshot has been validated it can be given as
 input to the `apply` command, which will actually execute the
