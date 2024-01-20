@@ -30,8 +30,14 @@ Installation
 ------------
 
 I am still figuring out how to use github workflows for building and
-distributing binaries. In the meanwhile, you can build from source
-using `cargo`.
+distributing binaries. In the meanwhile, you can install it using
+`cargo`, directly from github,
+
+``` shell
+    cargo install --git https://github.com/naiquevin/dupenukem.git
+```
+
+Or build from source again, using `cargo`.
 
 ``` shell
     git clone git@github.com:naiquevin/dupenukem.git
