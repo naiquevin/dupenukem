@@ -36,6 +36,8 @@ enum Command {
     Validate {
         #[arg(long, help = "Read text from std input")]
         stdin: bool,
+        #[arg(long, help = "Allow deletion of all files in a group")]
+        allow_full_deletion: bool,
         snapshot_path: Option<PathBuf>,
     },
 
@@ -48,6 +50,8 @@ enum Command {
             help = "Dry run i.e. the actions will only be logged and not actually run"
         )]
         dry_run: bool,
+        #[arg(long, help = "Allow deletion of all files in a group")]
+        allow_full_deletion: bool,
         #[arg(
             long,
             help = "Custom backup directory. If not specified, a default one based on current timestamp will be used"
@@ -107,10 +111,14 @@ fn read_input(path: Option<&PathBuf>, stdin: &bool) -> Result<Vec<String>, AppEr
     }
 }
 
-fn cmd_validate(snapshot_path: Option<&PathBuf>, stdin: &bool) -> Result<(), AppError> {
+fn cmd_validate(
+    snapshot_path: Option<&PathBuf>,
+    stdin: &bool,
+    allow_full_deletion: &bool,
+) -> Result<(), AppError> {
     let input = read_input(snapshot_path, stdin)?;
     let snapshot = textformat::parse(input)?;
-    match snapshot.validate() {
+    match snapshot.validate(allow_full_deletion) {
         Ok(actions) => {
             println!("Snapshot is valid!");
             let num_pending = executor::pending_actions(&actions, false).len();
@@ -148,6 +156,7 @@ fn cmd_apply(
     snapshot_path: Option<&PathBuf>,
     stdin: &bool,
     dry_run: &bool,
+    allow_full_deletion: &bool,
     backup_dir: &Option<PathBuf>,
 ) -> Result<(), AppError> {
     let input = read_input(snapshot_path, stdin)?;
@@ -157,7 +166,7 @@ fn cmd_apply(
     // a value.
     let dbd = default_backup_dir();
     let backup_dir_path = backup_dir.as_ref().unwrap_or(&dbd);
-    snapshot.validate().and_then(|actions| {
+    snapshot.validate(allow_full_deletion).and_then(|actions| {
         if !*dry_run {
             let ans = Confirm::new("All changes will be executed. Do you want to proceed?")
                 .with_default(false)
@@ -204,14 +213,22 @@ impl Cli {
             }) => cmd_find(rootdir, exclude.as_ref(), quick),
             Some(Command::Validate {
                 stdin,
+                allow_full_deletion,
                 snapshot_path,
-            }) => cmd_validate(snapshot_path.as_ref(), stdin),
+            }) => cmd_validate(snapshot_path.as_ref(), stdin, allow_full_deletion),
             Some(Command::Apply {
                 stdin,
                 snapshot_path,
                 dry_run,
+                allow_full_deletion,
                 backup_dir,
-            }) => cmd_apply(snapshot_path.as_ref(), stdin, dry_run, backup_dir),
+            }) => cmd_apply(
+                snapshot_path.as_ref(),
+                stdin,
+                dry_run,
+                allow_full_deletion,
+                backup_dir,
+            ),
             None => Err(AppError::Cmd("Please specify the command".to_owned())),
         }
     }

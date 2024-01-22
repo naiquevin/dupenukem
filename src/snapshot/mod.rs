@@ -90,7 +90,7 @@ impl Snapshot {
         Ok(snap)
     }
 
-    pub fn validate(&self) -> Result<Vec<Action>, AppError> {
-        validation::validate(self).map_err(AppError::SnapshotValidation)
+    pub fn validate(&self, is_full_deletion_allowed: &bool) -> Result<Vec<Action>, AppError> {
+        validation::validate(self, is_full_deletion_allowed).map_err(AppError::SnapshotValidation)
     }
 }

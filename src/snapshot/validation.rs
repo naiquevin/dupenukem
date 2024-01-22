@@ -50,7 +50,18 @@ fn find_keeper(filepaths: &[FilePath]) -> Option<&FilePath> {
         .and_then(|k| filepaths.iter().find(|fp| fp.path == k.path))
 }
 
-fn validate_group(hash: &Checksum, filepaths: &[FilePath]) -> Result<(), Error> {
+fn are_all_deletions(filepaths: &[FilePath]) -> bool {
+    filepaths
+        .iter()
+        .all(|filepath| filepath.op == FileOp::Delete)
+}
+
+fn validate_group(
+    hash: &Checksum,
+    filepaths: &[FilePath],
+    keeper: Option<&FilePath>,
+    is_full_deletion_allowed: &bool,
+) -> Result<(), Error> {
     let n = filepaths.len();
     if n <= 1 {
         return Err(Error::CorruptSnapshot(format!(
@@ -58,11 +69,17 @@ fn validate_group(hash: &Checksum, filepaths: &[FilePath]) -> Result<(), Error> 
         )));
     }
 
-    match find_keeper(filepaths) {
+    match keeper {
         Some(_) => Ok(()),
-        None => Err(Error::OpNotAllowed(format!(
-            "Group must contain at least 1 path marked 'keep'. None found for {hash}"
-        ))),
+        None => {
+            if *is_full_deletion_allowed && are_all_deletions(filepaths) {
+                Ok(())
+            } else {
+                Err(Error::OpNotAllowed(format!(
+                    "Group must contain at least 1 path marked 'keep'. None found for {hash}"
+                )))
+            }
+        }
     }
 }
 
@@ -305,7 +322,7 @@ fn validate_path<'a>(
     rootdir: &Path,
     hash: &Checksum,
     filepath: &'a FilePath,
-    keeper: &'a FilePath,
+    keeper: Option<&'a FilePath>,
 ) -> Result<Action<'a>, Error> {
     let path = &filepath.path;
 
@@ -321,7 +338,11 @@ fn validate_path<'a>(
     let action = match &filepath.op {
         FileOp::Keep => validate_path_to_keep(filepath, hash)?,
         FileOp::Symlink { source } => {
-            validate_path_to_symlink(filepath, source.as_ref(), &keeper.path, hash)?
+            // Assuming that the call to `validate_group` must have
+            // validated that there's at least one 'keep' entry,
+            // there's no need to handle None value.
+            let keeper_path = &keeper.unwrap().path;
+            validate_path_to_symlink(filepath, source.as_ref(), keeper_path, hash)?
         }
         FileOp::Delete => validate_path_to_delete(filepath, hash)?,
     };
@@ -329,17 +350,17 @@ fn validate_path<'a>(
     Ok(action)
 }
 
-pub fn validate(snap: &Snapshot) -> Result<Vec<Action>, Error> {
+pub fn validate<'a>(
+    snap: &'a Snapshot,
+    is_full_deletion_allowed: &bool,
+) -> Result<Vec<Action<'a>>, Error> {
     validate_rootdir(&snap.rootdir)?;
 
     let mut actions: Vec<Action> = Vec::new();
     for (hash, filepaths) in snap.duplicates.iter() {
-        validate_group(hash, filepaths)?;
+        let keeper = find_keeper(filepaths);
 
-        // As the call to `validate_group` must have validated that
-        // there's at least one 'keep' entry, there's no need to
-        // handle None value.
-        let keeper = find_keeper(filepaths).unwrap();
+        validate_group(hash, filepaths, keeper, is_full_deletion_allowed)?;
 
         for filepath in filepaths.iter() {
             match validate_path(&snap.rootdir, hash, filepath, keeper) {

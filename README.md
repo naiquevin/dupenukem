@@ -426,6 +426,16 @@ absolute source path.
     /Users/vineet/dpnktest/foo/1.txt
 ```
 
+Deleting all files in a group
+-----------------------------
+
+By default, deletion of all files in a group is not allowed. Hence,
+the validation and apply steps would fail in case of such input. But
+often users end up noticing such files through `dupenukem`, hence this
+functionality is supported behind the command line flag
+`--allow-full-deletion`. Note that this flag needs to be specified for
+both, validate and apply steps.
+
 Exclusions
 ----------
 
