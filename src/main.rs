@@ -30,7 +30,7 @@ enum Command {
         )]
         quick: bool,
         #[arg(long, help = "Donot list symlinks in snapshot output")]
-        no_links: bool,
+        skip_deduped: bool,
         rootdir: PathBuf,
     },
 
@@ -76,7 +76,7 @@ fn cmd_find(
     rootdir: &Path,
     exclude: Option<&Vec<String>>,
     quick: &bool,
-    no_links: &bool,
+    skip_deduped: &bool,
 ) -> Result<(), AppError> {
     let rootdir = if !rootdir.is_absolute() {
         info!("Relative path found for the specified rootdir. Normalizing it to absolute path");
@@ -96,8 +96,8 @@ fn cmd_find(
                 .join(", ")
         );
     }
-    let snap =
-        Snapshot::of_rootdir(&rootdir, excludes.as_ref(), quick, no_links).map_err(AppError::Io)?;
+    let snap = Snapshot::of_rootdir(&rootdir, excludes.as_ref(), quick, skip_deduped)
+        .map_err(AppError::Io)?;
     let output = textformat::render(&snap);
     if output.len() > 0 {
         for line in output.iter() {
@@ -222,9 +222,9 @@ impl Cli {
             Some(Command::Find {
                 exclude,
                 quick,
-                no_links,
+                skip_deduped,
                 rootdir,
-            }) => cmd_find(rootdir, exclude.as_ref(), quick, no_links),
+            }) => cmd_find(rootdir, exclude.as_ref(), quick, skip_deduped),
             Some(Command::Validate {
                 stdin,
                 allow_full_deletion,

@@ -91,7 +91,7 @@ impl Snapshot {
         rootdir: &Path,
         excludes: Option<&HashSet<PathBuf>>,
         quick: &bool,
-        no_links: &bool,
+        skip_deduped: &bool,
     ) -> io::Result<Snapshot> {
         let duplicates = scan(rootdir, excludes, quick)?
             .into_iter()
@@ -104,7 +104,7 @@ impl Snapshot {
                         .collect::<Vec<FilePath>>(),
                 )
             })
-            .filter(|(_, group)| !(*no_links && is_group_deduped(group)))
+            .filter(|(_, group)| !(*skip_deduped && is_group_deduped(group)))
             .collect::<HashMap<Checksum, Vec<FilePath>>>();
         let snap = Snapshot {
             rootdir: rootdir.to_path_buf(),

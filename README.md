@@ -352,7 +352,7 @@ This time, it found only 1 group of 2 duplicate files among which one
 is already a symlink to the other. Technically, there is no
 duplication anymore. If you wish to not include already deduplicated
 group such as this one, you can run the `find` command with the
-`--no-links` flag.
+`--skip-deduped` flag.
 
 Symlink preferences
 -------------------
