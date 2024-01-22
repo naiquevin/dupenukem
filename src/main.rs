@@ -29,6 +29,8 @@ enum Command {
             help = "Quick mode in which sha256 comparison is skipped and only xxhash3(64) hashes are compared instead"
         )]
         quick: bool,
+        #[arg(long, help = "Donot list symlinks in snapshot output")]
+        no_links: bool,
         rootdir: PathBuf,
     },
 
@@ -70,7 +72,12 @@ struct Cli {
     command: Option<Command>,
 }
 
-fn cmd_find(rootdir: &Path, exclude: Option<&Vec<String>>, quick: &bool) -> Result<(), AppError> {
+fn cmd_find(
+    rootdir: &Path,
+    exclude: Option<&Vec<String>>,
+    quick: &bool,
+    no_links: &bool,
+) -> Result<(), AppError> {
     let rootdir = if !rootdir.is_absolute() {
         info!("Relative path found for the specified rootdir. Normalizing it to absolute path");
         rootdir.canonicalize().map_err(AppError::Io)?
@@ -89,7 +96,8 @@ fn cmd_find(rootdir: &Path, exclude: Option<&Vec<String>>, quick: &bool) -> Resu
                 .join(", ")
         );
     }
-    let snap = Snapshot::of_rootdir(&rootdir, excludes.as_ref(), quick).map_err(AppError::Io)?;
+    let snap =
+        Snapshot::of_rootdir(&rootdir, excludes.as_ref(), quick, no_links).map_err(AppError::Io)?;
     for line in textformat::render(&snap).iter() {
         println!("{}", line);
     }
@@ -209,8 +217,9 @@ impl Cli {
             Some(Command::Find {
                 exclude,
                 quick,
+                no_links,
                 rootdir,
-            }) => cmd_find(rootdir, exclude.as_ref(), quick),
+            }) => cmd_find(rootdir, exclude.as_ref(), quick, no_links),
             Some(Command::Validate {
                 stdin,
                 allow_full_deletion,

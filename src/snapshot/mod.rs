@@ -66,6 +66,20 @@ impl FilePath {
     }
 }
 
+/// Returns if the group is already de-duped by checking whether there
+/// is only one path marked Keep and the rest marked Symlink
+fn is_group_deduped(filepaths: &Vec<FilePath>) -> bool {
+    let mut num_keeps = 0;
+    for filepath in filepaths {
+        match filepath.op {
+            FileOp::Keep => num_keeps = num_keeps + 1,
+            FileOp::Delete => return false,
+            FileOp::Symlink { source: _ } => {}
+        }
+    }
+    num_keeps == 1
+}
+
 pub struct Snapshot {
     pub rootdir: PathBuf,
     generated_at: DateTime<FixedOffset>,
@@ -77,10 +91,20 @@ impl Snapshot {
         rootdir: &Path,
         excludes: Option<&HashSet<PathBuf>>,
         quick: &bool,
+        no_links: &bool,
     ) -> io::Result<Snapshot> {
         let duplicates = scan(rootdir, excludes, quick)?
             .into_iter()
-            .map(|(d, ps)| (d, ps.into_iter().map(FilePath::new).collect()))
+            .map(|(checksum, paths)| {
+                (
+                    checksum,
+                    paths
+                        .into_iter()
+                        .map(FilePath::new)
+                        .collect::<Vec<FilePath>>(),
+                )
+            })
+            .filter(|(_, group)| !(*no_links && is_group_deduped(group)))
             .collect::<HashMap<Checksum, Vec<FilePath>>>();
         let snap = Snapshot {
             rootdir: rootdir.to_path_buf(),
@@ -92,5 +116,51 @@ impl Snapshot {
 
     pub fn validate(&self, is_full_deletion_allowed: &bool) -> Result<Vec<Action>, AppError> {
         validation::validate(self, is_full_deletion_allowed).map_err(AppError::SnapshotValidation)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_is_group_deduped() {
+        let g = vec![
+            FilePath {
+                path: PathBuf::from("/foo/1.txt"),
+                op: FileOp::Keep,
+            },
+            FilePath {
+                path: PathBuf::from("/bar/1.txt"),
+                op: FileOp::Symlink { source: None },
+            },
+            FilePath {
+                path: PathBuf::from("/cat/1.txt"),
+                op: FileOp::Symlink { source: None },
+            },
+        ];
+        assert!(is_group_deduped(&g));
+
+        let g = vec![
+            FilePath {
+                path: PathBuf::from("/foo/1.txt"),
+                op: FileOp::Keep,
+            },
+            FilePath {
+                path: PathBuf::from("/bar/1.txt"),
+                op: FileOp::Keep,
+            },
+            FilePath {
+                path: PathBuf::from("/cat/1.txt"),
+                op: FileOp::Symlink { source: None },
+            },
+        ];
+        assert!(!is_group_deduped(&g));
+
+        let g = vec![FilePath {
+            path: PathBuf::from("/foo/1.txt"),
+            op: FileOp::Keep,
+        }];
+        assert!(is_group_deduped(&g));
     }
 }
