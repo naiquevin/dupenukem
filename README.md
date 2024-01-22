@@ -42,10 +42,10 @@ Or build from source again, using `cargo`.
 ``` shell
     git clone git@github.com:naiquevin/dupenukem.git
     cd dupenukem
-    cargo build
+    cargo build --release
 
     # Copy the binary to some dir in your PATH
-    cp target/debug/dupenukem ~/bin
+    cp target/release/dupenukem ~/bin
 
     # You can now run it
     dupenukem --help
