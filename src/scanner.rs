@@ -150,7 +150,7 @@ fn group_duplicates<'a>(
         .collect::<Vec<&PathBuf>>();
     let poss_dups = possible_duplicates(valid_paths)?;
     let dups = group_dups_by_xxh3(poss_dups)?;
-    if *quick {
+    if !*quick {
         confirm_dups(dups)
     } else {
         Ok(dups)
