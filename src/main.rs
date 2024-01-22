@@ -98,8 +98,13 @@ fn cmd_find(
     }
     let snap =
         Snapshot::of_rootdir(&rootdir, excludes.as_ref(), quick, no_links).map_err(AppError::Io)?;
-    for line in textformat::render(&snap).iter() {
-        println!("{}", line);
+    let output = textformat::render(&snap);
+    if output.len() > 0 {
+        for line in output.iter() {
+            println!("{}", line);
+        }
+    } else {
+        eprintln!("No duplicates found under path: {}", rootdir.display());
     }
     Ok(())
 }

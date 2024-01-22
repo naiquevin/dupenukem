@@ -180,6 +180,13 @@ impl Line {
 }
 
 fn render_lines(snap: &Snapshot) -> Vec<Line> {
+    // When there are no duplicates, there is nothing to return. The
+    // caller code may check for an empty return value and log a
+    // user friendly message
+    if snap.duplicates.len() == 0 {
+        return vec![];
+    }
+
     // @TODO: Can we calculate the no. of lines roughly and initialize
     // a vector with that capacity?
     let mut lines: Vec<Line> = Vec::new();
