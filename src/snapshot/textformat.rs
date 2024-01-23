@@ -183,7 +183,7 @@ fn render_lines(snap: &Snapshot) -> Vec<Line> {
     // When there are no duplicates, there is nothing to return. The
     // caller code may check for an empty return value and log a
     // user friendly message
-    if snap.duplicates.len() == 0 {
+    if snap.duplicates.is_empty() {
         return vec![];
     }
 

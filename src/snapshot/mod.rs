@@ -72,7 +72,7 @@ fn is_group_deduped(filepaths: &Vec<FilePath>) -> bool {
     let mut num_keeps = 0;
     for filepath in filepaths {
         match filepath.op {
-            FileOp::Keep => num_keeps = num_keeps + 1,
+            FileOp::Keep => num_keeps += 1,
             FileOp::Delete => return false,
             FileOp::Symlink { source: _ } => {}
         }

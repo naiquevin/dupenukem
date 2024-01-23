@@ -99,7 +99,7 @@ fn cmd_find(
     let snap = Snapshot::of_rootdir(&rootdir, excludes.as_ref(), quick, skip_deduped)
         .map_err(AppError::Io)?;
     let output = textformat::render(&snap);
-    if output.len() > 0 {
+    if !output.is_empty() {
         for line in output.iter() {
             println!("{}", line);
         }
