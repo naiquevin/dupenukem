@@ -68,7 +68,7 @@ impl FilePath {
 
 /// Returns if the group is already de-duped by checking whether there
 /// is only one path marked Keep and the rest marked Symlink
-fn is_group_deduped(filepaths: &Vec<FilePath>) -> bool {
+fn is_group_deduped(filepaths: &[FilePath]) -> bool {
     let mut num_keeps = 0;
     for filepath in filepaths {
         match filepath.op {
