@@ -64,6 +64,11 @@ impl FilePath {
         };
         FilePath { path, op }
     }
+
+    fn size(&self) -> io::Result<u64> {
+        let metadata = self.path.metadata()?;
+        Ok(metadata.len())
+    }
 }
 
 /// Returns "keeper" of the duplicate group
