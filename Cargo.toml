@@ -11,7 +11,7 @@ clap = { version = "4.4.11", features = ["derive"] }
 dirs = "5.0.1"
 env_logger = "0.10.1"
 hex = "0.4.3"
-inquire = "0.6.2"
+inquire = "0.7.0"
 log = "0.4.20"
 pathdiff = "0.2.1"
 regex = "1.10.2"
