@@ -66,6 +66,32 @@ impl FilePath {
     }
 }
 
+/// Returns "keeper" of the duplicate group
+///
+/// A "keeper" is a FilePath that's marked as 'keep'. There's a global
+/// assumption in this app that in a valid snapshot, every group (of
+/// duplicates) must have at least 1 path marked as 'keep'. This
+/// function sorts the filepaths and returns the first occurrence
+/// that's marked 'keep'. Sorting increases the chance of the same
+/// path being considered the keeper, which helps in matching implicit
+/// symlink source paths during validation.
+fn find_keeper(filepaths: &[FilePath]) -> Option<&FilePath> {
+    let mut filepaths_sorted = filepaths.to_vec();
+    filepaths_sorted.sort();
+    filepaths_sorted
+        .iter()
+        .find(|filepath| filepath.op == FileOp::Keep)
+        .and_then(|k| filepaths.iter().find(|fp| fp.path == k.path))
+}
+
+/// Checks whether all filepaths in a duplicate group are marked for
+/// deletion
+fn are_all_deletions(filepaths: &[FilePath]) -> bool {
+    filepaths
+        .iter()
+        .all(|filepath| filepath.op == FileOp::Delete)
+}
+
 /// Returns if the group is already de-duped by checking whether there
 /// is only one path marked Keep and the rest marked Symlink
 fn is_group_deduped(filepaths: &[FilePath]) -> bool {
@@ -122,6 +148,45 @@ impl Snapshot {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn test_find_keeper() {
+        let fps = vec![
+            FilePath {
+                path: PathBuf::from("d.txt"),
+                op: FileOp::Keep,
+            },
+            FilePath {
+                path: PathBuf::from("a.txt"),
+                op: FileOp::Delete,
+            },
+            FilePath {
+                path: PathBuf::from("b.txt"),
+                op: FileOp::Keep,
+            },
+            FilePath {
+                path: PathBuf::from("c.txt"),
+                op: FileOp::Keep,
+            },
+            FilePath {
+                path: PathBuf::from("e.txt"),
+                op: FileOp::Delete,
+            },
+        ];
+        assert_eq!(Some(&fps[2]), find_keeper(&fps));
+
+        let fps = vec![
+            FilePath {
+                path: PathBuf::from("d.txt"),
+                op: FileOp::Delete,
+            },
+            FilePath {
+                path: PathBuf::from("a.txt"),
+                op: FileOp::Delete,
+            },
+        ];
+        assert!(find_keeper(&fps).is_none());
+    }
 
     #[test]
     fn test_is_group_deduped() {
