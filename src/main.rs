@@ -98,6 +98,9 @@ fn cmd_find(
     }
     let snap = Snapshot::of_rootdir(&rootdir, excludes.as_ref(), quick, skip_deduped)
         .map_err(AppError::Io)?;
+    snap.freeable_space()
+        .map(|total| info!("A max of {} space can be freed by deduplication", total))
+        .map_err(AppError::Io)?;
     let output = textformat::render(&snap);
     if !output.is_empty() {
         for line in output.iter() {

@@ -3,6 +3,7 @@ use crate::executor::Action;
 use crate::hash::Checksum;
 use crate::scanner::scan;
 use chrono::{DateTime, FixedOffset, Local};
+use size::Size;
 use std::collections::{HashMap, HashSet};
 use std::io;
 use std::path::{Path, PathBuf};
@@ -147,6 +148,19 @@ impl Snapshot {
 
     pub fn validate(&self, is_full_deletion_allowed: &bool) -> Result<Vec<Action>, AppError> {
         validation::validate(self, is_full_deletion_allowed).map_err(AppError::SnapshotValidation)
+    }
+
+    pub fn freeable_space(&self) -> io::Result<Size> {
+        let mut total = 0_u64;
+        for (_, filepaths) in &self.duplicates {
+            let num_keep = filepaths.iter()
+                .filter(|fp| fp.op == FileOp::Keep)
+                .count();
+            if let Some(keeper) = find_keeper(&filepaths) {
+                total += keeper.size()? * (num_keep - 1) as u64;
+            }
+        }
+        Ok(Size::from_bytes(total))
     }
 }
 
