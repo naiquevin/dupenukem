@@ -112,7 +112,7 @@ fn cmd_find(
     Ok(())
 }
 
-fn read_input(path: Option<&PathBuf>, stdin: &bool) -> Result<Vec<String>, AppError> {
+fn read_input(path: Option<&Path>, stdin: &bool) -> Result<Vec<String>, AppError> {
     match path {
         Some(p) => ioutil::read_lines_in_file(p).map_err(AppError::Io),
         None => {
@@ -128,7 +128,7 @@ fn read_input(path: Option<&PathBuf>, stdin: &bool) -> Result<Vec<String>, AppEr
 }
 
 fn cmd_validate(
-    snapshot_path: Option<&PathBuf>,
+    snapshot_path: Option<&Path>,
     stdin: &bool,
     allow_full_deletion: &bool,
 ) -> Result<(), AppError> {
@@ -169,7 +169,7 @@ fn default_backup_dir() -> PathBuf {
 }
 
 fn cmd_apply(
-    snapshot_path: Option<&PathBuf>,
+    snapshot_path: Option<&Path>,
     stdin: &bool,
     dry_run: &bool,
     allow_full_deletion: &bool,
@@ -232,7 +232,11 @@ impl Cli {
                 stdin,
                 allow_full_deletion,
                 snapshot_path,
-            }) => cmd_validate(snapshot_path.as_ref(), stdin, allow_full_deletion),
+            }) => cmd_validate(
+                snapshot_path.as_ref().map(|p| p.as_ref()),
+                stdin,
+                allow_full_deletion,
+            ),
             Some(Command::Apply {
                 stdin,
                 snapshot_path,
@@ -240,7 +244,7 @@ impl Cli {
                 allow_full_deletion,
                 backup_dir,
             }) => cmd_apply(
-                snapshot_path.as_ref(),
+                snapshot_path.as_ref().map(|p| p.as_ref()),
                 stdin,
                 dry_run,
                 allow_full_deletion,

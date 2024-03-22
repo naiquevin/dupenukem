@@ -153,9 +153,7 @@ impl Snapshot {
     pub fn freeable_space(&self) -> io::Result<Size> {
         let mut total = 0_u64;
         for (_, filepaths) in &self.duplicates {
-            let num_keep = filepaths.iter()
-                .filter(|fp| fp.op == FileOp::Keep)
-                .count();
+            let num_keep = filepaths.iter().filter(|fp| fp.op == FileOp::Keep).count();
             if let Some(keeper) = find_keeper(&filepaths) {
                 total += keeper.size()? * (num_keep - 1) as u64;
             }

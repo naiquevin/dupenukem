@@ -3,25 +3,25 @@ use crate::fileutil::{
     delete_file, normalize_path, normalize_symlink_src_path, replace_with_symlink,
 };
 use log::info;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 
 #[derive(Debug)]
 pub enum Action<'a> {
-    Keep(&'a PathBuf),
+    Keep(&'a Path),
     Symlink {
-        path: &'a PathBuf,
-        source: &'a PathBuf,
+        path: &'a Path,
+        source: &'a Path,
         is_explicit: bool,
         is_no_op: bool,
     },
     Delete {
-        path: &'a PathBuf,
+        path: &'a Path,
         is_no_op: bool,
     },
 }
 
 impl<'a> Action<'a> {
-    fn dry_run(&self, rootdir: &PathBuf) {
+    fn dry_run(&self, rootdir: &Path) {
         match self {
             Self::Keep(_) => {}
             Self::Symlink {

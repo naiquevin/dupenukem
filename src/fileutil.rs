@@ -32,9 +32,9 @@ pub fn within_rootdir(rootdir: &Path, path: &Path) -> bool {
 ///
 ///
 pub fn normalize_path(
-    path: &PathBuf,
+    path: &Path,
     must_be_relative: bool,
-    base_dir: &PathBuf,
+    base_dir: &Path,
 ) -> Result<PathBuf, AppError> {
     let is_relative = path.is_relative();
     if must_be_relative && !is_relative {
@@ -86,7 +86,7 @@ pub fn normalize_path(
 /// panics if that's not the case
 pub fn normalize_symlink_src_path(
     target: &Path,
-    source: &PathBuf,
+    source: &Path,
     is_explicit: bool,
 ) -> Result<PathBuf, AppError> {
     if is_explicit {

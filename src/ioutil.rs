@@ -1,6 +1,6 @@
 use std::fs::File;
 use std::io::{self, BufRead};
-use std::path::PathBuf;
+use std::path::Path;
 
 pub fn stdin_to_vec() -> io::Result<Vec<String>> {
     let stdin = io::stdin();
@@ -12,7 +12,7 @@ pub fn stdin_to_vec() -> io::Result<Vec<String>> {
     Ok(result)
 }
 
-pub fn read_lines_in_file(path: &PathBuf) -> io::Result<Vec<String>> {
+pub fn read_lines_in_file(path: &Path) -> io::Result<Vec<String>> {
     let file = File::open(path)?;
     let mut result = Vec::new();
     for line in io::BufReader::new(file).lines() {
