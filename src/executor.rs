@@ -64,7 +64,7 @@ impl<'a> Action<'a> {
         }
     }
 
-    fn execute(&self, backup_dir: Option<&PathBuf>, rootdir: &PathBuf) -> Result<(), AppError> {
+    fn execute(&self, backup_dir: Option<&Path>, rootdir: &PathBuf) -> Result<(), AppError> {
         match self {
             Self::Keep(_) => Ok(()),
             Self::Symlink {
@@ -127,7 +127,7 @@ pub fn pending_actions<'a>(actions: &'a [Action], include_no_op: bool) -> Vec<&'
 pub fn execute(
     actions: Vec<Action>,
     dry_run: &bool,
-    backup_dir: Option<&PathBuf>,
+    backup_dir: Option<&Path>,
     rootdir: &PathBuf,
 ) -> Result<(), AppError> {
     // Here we're passing the `dry_run` arg as the 2nd arg so that if,
