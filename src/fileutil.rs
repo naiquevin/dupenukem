@@ -305,8 +305,8 @@ mod tests {
         let f = new_file("foo.txt", "dummy data");
         let res = take_backup(
             &f,
-            &PathBuf::from(TEST_BACKUP_DIR),
-            &PathBuf::from(TEST_FIXTURES_DIR),
+            Path::new(TEST_BACKUP_DIR),
+            Path::new(TEST_FIXTURES_DIR),
         );
         match res {
             Ok(backup_path) => {
@@ -327,8 +327,8 @@ mod tests {
         let f = new_file("foo.txt", "dummy data");
         let res = take_backup(
             &f,
-            &PathBuf::from(TEST_BACKUP_DIR),
-            &PathBuf::from(".non-existing-test-data-dir/fixtures"),
+            Path::new(TEST_BACKUP_DIR),
+            Path::new(".non-existing-test-data-dir/fixtures"),
         );
         match res {
             Ok(_backup_path) => assert!(false),
@@ -354,8 +354,8 @@ mod tests {
         assert!(g.is_symlink(), "Symlink is created");
         let res = take_backup(
             &g,
-            &PathBuf::from(TEST_BACKUP_DIR),
-            &PathBuf::from(TEST_FIXTURES_DIR),
+            Path::new(TEST_BACKUP_DIR),
+            Path::new(TEST_FIXTURES_DIR),
         );
         match res {
             Ok(backup_path) => {
@@ -378,7 +378,7 @@ mod tests {
 
         let f = new_file("foo/bar/cat/1.txt", "file to be deleted");
         let backup_dir = Some(Path::new(TEST_BACKUP_DIR));
-        let res = delete_file(&f, backup_dir, &PathBuf::from(TEST_FIXTURES_DIR));
+        let res = delete_file(&f, backup_dir, Path::new(TEST_FIXTURES_DIR));
         assert!(res.is_ok(), "file deletion is successful");
         assert!(!f.try_exists().unwrap(), "file doesn't exist any more");
         let backup_path = backup_dir.unwrap().join("foo/bar/cat/1.txt");
@@ -395,7 +395,7 @@ mod tests {
 
         let path = new_file("abc/foo.txt", "file to be replaced with a symlink");
         let backup_dir = Some(Path::new(TEST_BACKUP_DIR));
-        let base_dir = PathBuf::from(TEST_FIXTURES_DIR);
+        let base_dir = Path::new(TEST_FIXTURES_DIR);
         let src = new_file("abc/foo/main.txt", "canonical file");
         let res = replace_with_symlink(&path, &src, backup_dir, &base_dir);
         assert!(res.is_ok(), "replace_with_symlink returned Ok result");
