@@ -3,6 +3,7 @@ use crate::executor::Action;
 use crate::hash::Checksum;
 use crate::scanner::scan;
 use chrono::{DateTime, FixedOffset, Local};
+use size::Size;
 use std::collections::{HashMap, HashSet};
 use std::io;
 use std::path::{Path, PathBuf};
@@ -64,11 +65,42 @@ impl FilePath {
         };
         FilePath { path, op }
     }
+
+    fn size(&self) -> io::Result<u64> {
+        let metadata = self.path.metadata()?;
+        Ok(metadata.len())
+    }
+}
+
+/// Returns "keeper" of the duplicate group
+///
+/// A "keeper" is a FilePath that's marked as 'keep'. There's a global
+/// assumption in this app that in a valid snapshot, every group (of
+/// duplicates) must have at least 1 path marked as 'keep'. This
+/// function sorts the filepaths and returns the first occurrence
+/// that's marked 'keep'. Sorting increases the chance of the same
+/// path being considered the keeper, which helps in matching implicit
+/// symlink source paths during validation.
+fn find_keeper(filepaths: &[FilePath]) -> Option<&FilePath> {
+    let mut filepaths_sorted = filepaths.to_vec();
+    filepaths_sorted.sort();
+    filepaths_sorted
+        .iter()
+        .find(|filepath| filepath.op == FileOp::Keep)
+        .and_then(|k| filepaths.iter().find(|fp| fp.path == k.path))
+}
+
+/// Checks whether all filepaths in a duplicate group are marked for
+/// deletion
+fn are_all_deletions(filepaths: &[FilePath]) -> bool {
+    filepaths
+        .iter()
+        .all(|filepath| filepath.op == FileOp::Delete)
 }
 
 /// Returns if the group is already de-duped by checking whether there
 /// is only one path marked Keep and the rest marked Symlink
-fn is_group_deduped(filepaths: &Vec<FilePath>) -> bool {
+fn is_group_deduped(filepaths: &[FilePath]) -> bool {
     let mut num_keeps = 0;
     for filepath in filepaths {
         match filepath.op {
@@ -117,11 +149,61 @@ impl Snapshot {
     pub fn validate(&self, is_full_deletion_allowed: &bool) -> Result<Vec<Action>, AppError> {
         validation::validate(self, is_full_deletion_allowed).map_err(AppError::SnapshotValidation)
     }
+
+    pub fn freeable_space(&self) -> io::Result<Size> {
+        let mut total = 0_u64;
+        for filepaths in self.duplicates.values() {
+            let num_keep = filepaths.iter().filter(|fp| fp.op == FileOp::Keep).count();
+            if let Some(keeper) = find_keeper(filepaths) {
+                total += keeper.size()? * (num_keep - 1) as u64;
+            }
+        }
+        Ok(Size::from_bytes(total))
+    }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn test_find_keeper() {
+        let fps = vec![
+            FilePath {
+                path: PathBuf::from("d.txt"),
+                op: FileOp::Keep,
+            },
+            FilePath {
+                path: PathBuf::from("a.txt"),
+                op: FileOp::Delete,
+            },
+            FilePath {
+                path: PathBuf::from("b.txt"),
+                op: FileOp::Keep,
+            },
+            FilePath {
+                path: PathBuf::from("c.txt"),
+                op: FileOp::Keep,
+            },
+            FilePath {
+                path: PathBuf::from("e.txt"),
+                op: FileOp::Delete,
+            },
+        ];
+        assert_eq!(Some(&fps[2]), find_keeper(&fps));
+
+        let fps = vec![
+            FilePath {
+                path: PathBuf::from("d.txt"),
+                op: FileOp::Delete,
+            },
+            FilePath {
+                path: PathBuf::from("a.txt"),
+                op: FileOp::Delete,
+            },
+        ];
+        assert!(find_keeper(&fps).is_none());
+    }
 
     #[test]
     fn test_is_group_deduped() {

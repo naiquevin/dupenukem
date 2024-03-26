@@ -32,9 +32,9 @@ pub fn within_rootdir(rootdir: &Path, path: &Path) -> bool {
 ///
 ///
 pub fn normalize_path(
-    path: &PathBuf,
+    path: &Path,
     must_be_relative: bool,
-    base_dir: &PathBuf,
+    base_dir: &Path,
 ) -> Result<PathBuf, AppError> {
     let is_relative = path.is_relative();
     if must_be_relative && !is_relative {
@@ -86,7 +86,7 @@ pub fn normalize_path(
 /// panics if that's not the case
 pub fn normalize_symlink_src_path(
     target: &Path,
-    source: &PathBuf,
+    source: &Path,
     is_explicit: bool,
 ) -> Result<PathBuf, AppError> {
     if is_explicit {
@@ -165,7 +165,7 @@ fn take_backup(path: &Path, backup_dir: &Path, base_dir: &Path) -> Result<PathBu
 ///
 pub fn delete_file(
     path: &Path,
-    backup_dir: Option<&PathBuf>,
+    backup_dir: Option<&Path>,
     base_dir: &Path,
 ) -> Result<(), AppError> {
     if let Some(bd) = backup_dir {
@@ -191,7 +191,7 @@ pub fn delete_file(
 pub fn replace_with_symlink(
     path: &Path,
     source_path: &Path,
-    backup_dir: Option<&PathBuf>,
+    backup_dir: Option<&Path>,
     base_dir: &Path,
 ) -> Result<(), AppError> {
     // First delete the existing path (with backup if applicable)
@@ -303,11 +303,7 @@ mod tests {
         setup();
 
         let f = new_file("foo.txt", "dummy data");
-        let res = take_backup(
-            &f,
-            &PathBuf::from(TEST_BACKUP_DIR),
-            &PathBuf::from(TEST_FIXTURES_DIR),
-        );
+        let res = take_backup(&f, Path::new(TEST_BACKUP_DIR), Path::new(TEST_FIXTURES_DIR));
         match res {
             Ok(backup_path) => {
                 assert!(backup_path.is_file());
@@ -327,8 +323,8 @@ mod tests {
         let f = new_file("foo.txt", "dummy data");
         let res = take_backup(
             &f,
-            &PathBuf::from(TEST_BACKUP_DIR),
-            &PathBuf::from(".non-existing-test-data-dir/fixtures"),
+            Path::new(TEST_BACKUP_DIR),
+            Path::new(".non-existing-test-data-dir/fixtures"),
         );
         match res {
             Ok(_backup_path) => assert!(false),
@@ -352,11 +348,7 @@ mod tests {
         let g = PathBuf::from(TEST_FIXTURES_DIR).join("foo_1_link.txt");
         std::os::unix::fs::symlink(&f, &g).expect("Couldn't create symlink");
         assert!(g.is_symlink(), "Symlink is created");
-        let res = take_backup(
-            &g,
-            &PathBuf::from(TEST_BACKUP_DIR),
-            &PathBuf::from(TEST_FIXTURES_DIR),
-        );
+        let res = take_backup(&g, Path::new(TEST_BACKUP_DIR), Path::new(TEST_FIXTURES_DIR));
         match res {
             Ok(backup_path) => {
                 assert!(backup_path.is_file());
@@ -377,8 +369,8 @@ mod tests {
         setup();
 
         let f = new_file("foo/bar/cat/1.txt", "file to be deleted");
-        let backup_dir = Some(PathBuf::from(TEST_BACKUP_DIR));
-        let res = delete_file(&f, backup_dir.as_ref(), &PathBuf::from(TEST_FIXTURES_DIR));
+        let backup_dir = Some(Path::new(TEST_BACKUP_DIR));
+        let res = delete_file(&f, backup_dir, Path::new(TEST_FIXTURES_DIR));
         assert!(res.is_ok(), "file deletion is successful");
         assert!(!f.try_exists().unwrap(), "file doesn't exist any more");
         let backup_path = backup_dir.unwrap().join("foo/bar/cat/1.txt");
@@ -394,10 +386,10 @@ mod tests {
         setup();
 
         let path = new_file("abc/foo.txt", "file to be replaced with a symlink");
-        let backup_dir = Some(PathBuf::from(TEST_BACKUP_DIR));
-        let base_dir = PathBuf::from(TEST_FIXTURES_DIR);
+        let backup_dir = Some(Path::new(TEST_BACKUP_DIR));
+        let base_dir = Path::new(TEST_FIXTURES_DIR);
         let src = new_file("abc/foo/main.txt", "canonical file");
-        let res = replace_with_symlink(&path, &src, backup_dir.as_ref(), &base_dir);
+        let res = replace_with_symlink(&path, &src, backup_dir, &base_dir);
         assert!(res.is_ok(), "replace_with_symlink returned Ok result");
         // let backup_path = backup_dir.unwrap().join("abc/foo.txt");
         // assert!(backup_path.is_file(), "original file is backed up");

@@ -3,25 +3,25 @@ use crate::fileutil::{
     delete_file, normalize_path, normalize_symlink_src_path, replace_with_symlink,
 };
 use log::info;
-use std::path::PathBuf;
+use std::path::Path;
 
 #[derive(Debug)]
 pub enum Action<'a> {
-    Keep(&'a PathBuf),
+    Keep(&'a Path),
     Symlink {
-        path: &'a PathBuf,
-        source: &'a PathBuf,
+        path: &'a Path,
+        source: &'a Path,
         is_explicit: bool,
         is_no_op: bool,
     },
     Delete {
-        path: &'a PathBuf,
+        path: &'a Path,
         is_no_op: bool,
     },
 }
 
 impl<'a> Action<'a> {
-    fn dry_run(&self, rootdir: &PathBuf) {
+    fn dry_run(&self, rootdir: &Path) {
         match self {
             Self::Keep(_) => {}
             Self::Symlink {
@@ -64,7 +64,7 @@ impl<'a> Action<'a> {
         }
     }
 
-    fn execute(&self, backup_dir: Option<&PathBuf>, rootdir: &PathBuf) -> Result<(), AppError> {
+    fn execute(&self, backup_dir: Option<&Path>, rootdir: &Path) -> Result<(), AppError> {
         match self {
             Self::Keep(_) => Ok(()),
             Self::Symlink {
@@ -127,8 +127,8 @@ pub fn pending_actions<'a>(actions: &'a [Action], include_no_op: bool) -> Vec<&'
 pub fn execute(
     actions: Vec<Action>,
     dry_run: &bool,
-    backup_dir: Option<&PathBuf>,
-    rootdir: &PathBuf,
+    backup_dir: Option<&Path>,
+    rootdir: &Path,
 ) -> Result<(), AppError> {
     // Here we're passing the `dry_run` arg as the 2nd arg so that if,
     //
@@ -166,10 +166,10 @@ mod tests {
 
     #[test]
     fn test_pending_actions() {
-        let p1 = PathBuf::from("/a/1.txt");
-        let p2 = PathBuf::from("/a/2.txt");
-        let p3 = PathBuf::from("/a/3.txt");
-        let p4 = PathBuf::from("/a/4.txt");
+        let p1 = Path::new("/a/1.txt");
+        let p2 = Path::new("/a/2.txt");
+        let p3 = Path::new("/a/3.txt");
+        let p4 = Path::new("/a/4.txt");
         let actions = vec![
             Action::Keep(&p1),
             Action::Symlink {

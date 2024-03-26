@@ -1,11 +1,11 @@
-use super::{FileOp, FilePath, Snapshot};
+use super::{find_keeper, FileOp, FilePath, Snapshot};
 use crate::error::AppError;
 use crate::fileutil::normalize_path;
 use crate::hash::Checksum;
 use chrono::{DateTime, FixedOffset};
 use regex::Regex;
 use std::collections::HashMap;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 
 #[derive(Debug, Eq, PartialEq)]
 enum Line {
@@ -147,7 +147,7 @@ impl Line {
 
     // Constructor of sorts to create PathInfo variant from a
     // `FilePath` instance
-    fn pathinfo(filepath: &FilePath, rootdir: &PathBuf) -> Self {
+    fn pathinfo(filepath: &FilePath, rootdir: &Path) -> Self {
         // The `path` field in `Self::PathInfo` must be a relative
         // path, so we first compute that using the rootdir
         let path = normalize_path(&filepath.path, true, rootdir)
@@ -179,6 +179,25 @@ impl Line {
     }
 }
 
+/// Sort entries in the duplicate groups hashmap by size
+///
+/// Note that it returns a vector of tuples
+fn sorted_groups(
+    duplicates: &HashMap<Checksum, Vec<FilePath>>,
+) -> Vec<(&Checksum, &Vec<FilePath>)> {
+    let mut dups = duplicates
+        .iter()
+        .map(|x| {
+            let size = find_keeper(x.1).and_then(|fp| fp.size().ok()).unwrap_or(0);
+            (x.0, x.1, size)
+        })
+        .collect::<Vec<(&Checksum, &Vec<FilePath>, u64)>>();
+    dups.sort_by(|a, b| b.2.cmp(&a.2));
+    dups.iter()
+        .map(|x| (x.0, x.1))
+        .collect::<Vec<(&Checksum, &Vec<FilePath>)>>()
+}
+
 fn render_lines(snap: &Snapshot) -> Vec<Line> {
     // When there are no duplicates, there is nothing to return. The
     // caller code may check for an empty return value and log a
@@ -206,8 +225,8 @@ fn render_lines(snap: &Snapshot) -> Vec<Line> {
     // Add a blank line before dumping the filepath groupings
     lines.push(Line::Blank);
 
-    for (k, vs) in snap.duplicates.iter() {
-        lines.push(Line::Checksum(format!("{}", k)));
+    for (ck, vs) in sorted_groups(&snap.duplicates) {
+        lines.push(Line::Checksum(format!("{}", ck)));
         for v in vs {
             lines.push(Line::pathinfo(v, &snap.rootdir));
         }

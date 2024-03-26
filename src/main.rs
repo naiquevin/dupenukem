@@ -98,6 +98,9 @@ fn cmd_find(
     }
     let snap = Snapshot::of_rootdir(&rootdir, excludes.as_ref(), quick, skip_deduped)
         .map_err(AppError::Io)?;
+    snap.freeable_space()
+        .map(|total| info!("A max of {} space can be freed by deduplication", total))
+        .map_err(AppError::Io)?;
     let output = textformat::render(&snap);
     if !output.is_empty() {
         for line in output.iter() {
@@ -109,7 +112,7 @@ fn cmd_find(
     Ok(())
 }
 
-fn read_input(path: Option<&PathBuf>, stdin: &bool) -> Result<Vec<String>, AppError> {
+fn read_input(path: Option<&Path>, stdin: &bool) -> Result<Vec<String>, AppError> {
     match path {
         Some(p) => ioutil::read_lines_in_file(p).map_err(AppError::Io),
         None => {
@@ -125,7 +128,7 @@ fn read_input(path: Option<&PathBuf>, stdin: &bool) -> Result<Vec<String>, AppEr
 }
 
 fn cmd_validate(
-    snapshot_path: Option<&PathBuf>,
+    snapshot_path: Option<&Path>,
     stdin: &bool,
     allow_full_deletion: &bool,
 ) -> Result<(), AppError> {
@@ -166,11 +169,11 @@ fn default_backup_dir() -> PathBuf {
 }
 
 fn cmd_apply(
-    snapshot_path: Option<&PathBuf>,
+    snapshot_path: Option<&Path>,
     stdin: &bool,
     dry_run: &bool,
     allow_full_deletion: &bool,
-    backup_dir: &Option<PathBuf>,
+    backup_dir: Option<&Path>,
 ) -> Result<(), AppError> {
     let input = read_input(snapshot_path, stdin)?;
     let snapshot = textformat::parse(input)?;
@@ -178,7 +181,7 @@ fn cmd_apply(
     // because the fallback value in `unwrap_or` is a pointer and not
     // a value.
     let dbd = default_backup_dir();
-    let backup_dir_path = backup_dir.as_ref().unwrap_or(&dbd);
+    let backup_dir_path = backup_dir.unwrap_or(dbd.as_ref());
     snapshot.validate(allow_full_deletion).and_then(|actions| {
         if !*dry_run {
             let ans = Confirm::new("All changes will be executed. Do you want to proceed?")
@@ -229,7 +232,11 @@ impl Cli {
                 stdin,
                 allow_full_deletion,
                 snapshot_path,
-            }) => cmd_validate(snapshot_path.as_ref(), stdin, allow_full_deletion),
+            }) => cmd_validate(
+                snapshot_path.as_ref().map(|p| p.as_ref()),
+                stdin,
+                allow_full_deletion,
+            ),
             Some(Command::Apply {
                 stdin,
                 snapshot_path,
@@ -237,11 +244,11 @@ impl Cli {
                 allow_full_deletion,
                 backup_dir,
             }) => cmd_apply(
-                snapshot_path.as_ref(),
+                snapshot_path.as_ref().map(|p| p.as_ref()),
                 stdin,
                 dry_run,
                 allow_full_deletion,
-                backup_dir,
+                backup_dir.as_ref().map(|p| p.as_ref()),
             ),
             None => Err(AppError::Cmd("Please specify the command".to_owned())),
         }
