@@ -34,7 +34,7 @@ fi
 mkdir gh-release
 
 echo "Running cargo build"
-cargo build --verbose --release
+cargo build --release
 
 bin=dupenukem-$target
 
@@ -42,7 +42,7 @@ echo "Copying binary to ./gh-release"
 mv target/release/dupenukem gh-release/$bin
 
 echo "Running gzip"
-gzip gh-release/$bin
+gzip -f gh-release/$bin
 
 echo "Calculating sha256 checksum"
 shasum -a 256 gh-release/$bin.gz | awk '{ print $1 }' > gh-release/$bin.gz.sha256
