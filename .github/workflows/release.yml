@@ -86,18 +86,20 @@ jobs:
             os: ubuntu-22.04
             rust: stable
             target: x86_64-unknown-linux-gnu
-          - build: linux-arm
-            os: ubuntu-22.04
-            rust: stable
-            target: aarch64-unknown-linux-gnu
+          ## @TODO Cross compilation needed here
+          # - build: linux-arm
+          #   os: ubuntu-22.04
+          #   rust: stable
+          #   target: aarch64-unknown-linux-gnu
           - build: macos
             os: macos-12
             rust: stable
             target: x86_64-apple-darwin
-          - build: macos-arm
-            os: macos-12
-            rust: stable
-            target: aarch64-apple-darwin
+          ## @TODO Cross compilation needed here
+          # - build: macos-arm
+          #   os: macos-12
+          #   rust: stable
+          #   target: aarch64-apple-darwin
 
     steps:
       - name: Checkout repository
