@@ -23,7 +23,6 @@ pub enum Action<'a> {
 }
 
 impl<'a> Action<'a> {
-
     fn freeable_space(&self) -> io::Result<u64> {
         let size = match self {
             Self::Keep(_) => 0_u64,
@@ -39,10 +38,7 @@ impl<'a> Action<'a> {
                     path.metadata()?.len()
                 }
             }
-            Self::Delete {
-                is_no_op,
-                path,
-            } => {
+            Self::Delete { is_no_op, path } => {
                 if *is_no_op {
                     0_u64
                 } else {
@@ -180,8 +176,7 @@ pub fn execute(
         actions_pending.len(),
         dry_run
     );
-    let freeable_space = total_freeable_space(&actions)
-        .map_err(AppError::Io)?;
+    let freeable_space = total_freeable_space(&actions).map_err(AppError::Io)?;
     if *dry_run {
         match backup_dir {
             Some(d) => eprintln!(
