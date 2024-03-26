@@ -25,7 +25,7 @@ jobs:
     steps:
       - name: Inputs from workflow dispatch
         shell: bash
-        if: ${{ github.event_name == 'workflow_dispatch '}}
+        if: ${{ github.event_name == 'workflow_dispatch' }}
         run: |
           echo "DPNK_VERSION=${{ github.event.inputs.version }}" >> $GITHUB_ENV
           echo "DPNK_DRY_RUN=${{ github.event.inputs.dry-run }}" >> $GITHUB_ENV
@@ -33,7 +33,14 @@ jobs:
           echo "DPNK_DRY_RUN: ${{ github.event.inputs.dry-run }}"
 
       - name: Checkout repository
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
+        if: ${{ github.event_name == 'workflow_dispatch'}}
+        with:
+          ref: ${{ github.event.inputs.version }}
+
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        if: ${{ github.event_name != 'workflow_dispatch'}}
 
       - name: Get the release version from the tag
         shell: bash
@@ -94,6 +101,8 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
+        with:
+          ref: ${{ needs.create-release.outputs.dpnk_version }}
 
       - name: Install Rust
         uses: dtolnay/rust-toolchain@master
