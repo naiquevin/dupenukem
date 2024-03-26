@@ -114,7 +114,9 @@ jobs:
       - name: Build using the scripts/gh-build script
         shell: bash
         run: |
-          scripts/gh-build ${{ needs.create-release.outputs.dpnk_version }} ${{ matrix.target }}
+          # scripts/gh-build ${{ needs.create-release.outputs.dpnk_version }} ${{ matrix.target }}
+          wget https://raw.githubusercontent.com/naiquevin/dupenukem/master/scripts/gh-build
+          bash gh-build ${{ needs.create-release.outputs.dpnk_version }} ${{ matrix.target }}
 
       - name: Upload release archive
         if: ${{ needs.create-release.outputs.dpnk_dry_run != 'yes' }}
