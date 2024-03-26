@@ -3,6 +3,8 @@ use crate::fileutil::{
     delete_file, normalize_path, normalize_symlink_src_path, replace_with_symlink,
 };
 use log::info;
+use size::Size;
+use std::io;
 use std::path::Path;
 
 #[derive(Debug)]
@@ -21,6 +23,36 @@ pub enum Action<'a> {
 }
 
 impl<'a> Action<'a> {
+
+    fn freeable_space(&self) -> io::Result<u64> {
+        let size = match self {
+            Self::Keep(_) => 0_u64,
+            Self::Symlink {
+                is_no_op,
+                path,
+                source: _,
+                is_explicit: _,
+            } => {
+                if *is_no_op {
+                    0_u64
+                } else {
+                    path.metadata()?.len()
+                }
+            }
+            Self::Delete {
+                is_no_op,
+                path,
+            } => {
+                if *is_no_op {
+                    0_u64
+                } else {
+                    path.metadata()?.len()
+                }
+            }
+        };
+        Ok(size)
+    }
+
     fn dry_run(&self, rootdir: &Path) {
         match self {
             Self::Keep(_) => {}
@@ -124,6 +156,14 @@ pub fn pending_actions<'a>(actions: &'a [Action], include_no_op: bool) -> Vec<&'
         .collect::<Vec<&Action>>()
 }
 
+pub fn total_freeable_space(actions: &[Action]) -> io::Result<Size> {
+    let mut total = 0_u64;
+    for action in actions {
+        total += action.freeable_space()?;
+    }
+    Ok(Size::from_bytes(total))
+}
+
 pub fn execute(
     actions: Vec<Action>,
     dry_run: &bool,
@@ -140,6 +180,8 @@ pub fn execute(
         actions_pending.len(),
         dry_run
     );
+    let freeable_space = total_freeable_space(&actions)
+        .map_err(AppError::Io)?;
     if *dry_run {
         match backup_dir {
             Some(d) => eprintln!(
@@ -152,10 +194,12 @@ pub fn execute(
         for action in actions_pending {
             action.dry_run(rootdir);
         }
+        eprintln!("[DRY RUN] {freeable_space} of space will be freed up");
     } else {
         for action in actions_pending {
             action.execute(backup_dir, rootdir)?;
         }
+        eprintln!("{freeable_space} of space has been freed up");
     }
     Ok(())
 }
