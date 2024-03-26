@@ -159,9 +159,11 @@ permissions to read and write files inside the root directory.
 We'll begin by running the `find` command:
 
 ``` text
-    $ dupenukem find ~/dpnktest | tee ~/dpnktest_snapshot.txt
+    $ dupenukem find -v ~/dpnktest | tee ~/dpnktest_snapshot.txt
+    [2024-03-26T12:58:06Z INFO  dupenukem] Generating snapshot for dir: /Users/vineet/dpnktest
+    [2024-03-26T12:58:06Z INFO  dupenukem] A max of 8 bytes space can be freed by deduplication
     #! Root Directory: /Users/vineet/dpnktest
-    #! Generated at: Tue, 16 Jan 2024 12:00:05 +0530
+    #! Generated at: Tue, 26 Mar 2024 18:28:06 +0530
 
     [13062064944137093030]
     keep cat/2.txt
@@ -211,6 +213,11 @@ Things to note:
   simple reference for the action markers that the user may use when
   editing the file.
 
+- Notice the log lines before the snapshot output. Logs are printed to
+  `stderr` and the level can be controlled using the `-v`
+  option. Starting version `0.2.0` (unreleased), the find command logs
+  the max space that can be freed up by deduplication.
+
 - Finally, we've redirected the (std) output to the file
   `~/dpnktest_snapshot.txt` in order to store the snapshot.
 
@@ -259,16 +266,19 @@ will happen:
     [DRY RUN] File to be replaced with symlink: bar/1.txt -> ../foo/1.txt
     [DRY RUN] File to be deleted: cat/2.txt
     [DRY RUN] Backup will be stored under /Users/vineet/.dupenukem/backups
+    [DRY RUN] 8 bytes of space will be freed up
 ```
 
-Notice the last line that mentions the backup location inside
+Notice the second last line that mentions the backup location inside
 `~/.dupenukem/backups`. It's assumed that the current user has
 permissions to write to this location. Backups will be taken inside a
-new directory under this location, with the dir name derived from the
-current timestamp. This will ensure that multiple backups can
+new directory under this location, with the directory name derived
+from the current timestamp. This will ensure that multiple backups can
 coexist. This also implies that it's up to the user to cleanup older
 backups that are no longer required. The user can also choose to
 override the backup directory by specifying the `--backup-dir` option.
+
+The last line mentions the amount of space that will be freed.
 
 Let's now proceed with running the `apply` command without the
 `--dry-run` flag.
@@ -276,11 +286,12 @@ Let's now proceed with running the `apply` command without the
 ``` shell
     $ dupenukem apply ~/dpnktest_snapshot.txt
     > All changes will be executed. Do you want to proceed? Yes
+    8 bytes of space has been freed up
 ```
 
-This command doesn't print any output but it will ask for confirmation
-before executing the actions. Let's inspect the directory structure
-now using the same `tree` command:
+Without the `--dry-run` flag, it asks for confirmation before
+executing the actions. Let's inspect the directory structure now using
+the same `tree` command:
 
 ``` shell
     $ cd ~/dpnktest
@@ -328,9 +339,11 @@ Now let's see what happens if we run the `find` command once again on
 the current state of the `~/dpnktest` directory.
 
 ``` text
-    $ dupenukem find ~/dpnktest
+    $ dupenukem find -v ~/dpnktest
+    [2024-03-26T13:10:08Z INFO  dupenukem] Generating snapshot for dir: /Users/vineet/dpnktest
+    [2024-03-26T13:10:08Z INFO  dupenukem] A max of 0 bytes space can be freed by deduplication
     #! Root Directory: /Users/vineet/dpnktest
-    #! Generated at: Thu, 18 Jan 2024 10:40:23 +0530
+    #! Generated at: Tue, 26 Mar 2024 18:40:08 +0530
 
     [10098984572146910405]
     keep foo/1.txt
