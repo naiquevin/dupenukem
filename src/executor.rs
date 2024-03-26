@@ -140,13 +140,6 @@ pub fn execute(
         actions_pending.len(),
         dry_run
     );
-    for action in actions_pending {
-        if *dry_run {
-            action.dry_run(rootdir);
-        } else {
-            action.execute(backup_dir, rootdir)?;
-        }
-    }
     if *dry_run {
         match backup_dir {
             Some(d) => eprintln!(
@@ -154,6 +147,14 @@ pub fn execute(
                 d.parent().unwrap().display()
             ),
             None => eprintln!("[DRY RUN] Backup is disabled (not recommended)"),
+        }
+
+        for action in actions_pending {
+            action.dry_run(rootdir);
+        }
+    } else {
+        for action in actions_pending {
+            action.execute(backup_dir, rootdir)?;
         }
     }
     Ok(())
