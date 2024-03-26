@@ -58,12 +58,13 @@ jobs:
           # Here we're doing a bare minimum check to ensure tag and
           # version in Cargo.toml is the same. A proper check will
           # again be done later at the time of building the artifact.
-          if ! grep -qE '^version = "$DPNK_VERSION"$' Cargo.toml; then
+          if ! grep -qE "^version = \"$DPNK_VERSION\"$" Cargo.toml; then
             echo "version does not match Cargo.toml" >&2
             exit 1
           fi
 
       - name: Create Github release (draft)
+        if: env.DPNK_DRY_RUN != 'yes'
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: gh release create $DPNK_VERSION --draft --verify-tag --title $DPNK_VERSION
