@@ -77,8 +77,8 @@ fn is_path_valid(rootdir: &Path, path: &Path) -> bool {
     }
 }
 
-fn group_by_size(paths: Vec<&PathBuf>) -> io::Result<HashMap<u64, Vec<&PathBuf>>> {
-    let mut res: HashMap<u64, Vec<&PathBuf>> = HashMap::new();
+fn group_by_size(paths: Vec<&Path>) -> io::Result<HashMap<u64, Vec<&Path>>> {
+    let mut res: HashMap<u64, Vec<&Path>> = HashMap::new();
     for path in paths {
         let size = path.metadata()?.len();
         match res.get_mut(&size) {
@@ -93,10 +93,10 @@ fn group_by_size(paths: Vec<&PathBuf>) -> io::Result<HashMap<u64, Vec<&PathBuf>>
     Ok(res)
 }
 
-fn possible_duplicates(paths: Vec<&PathBuf>) -> io::Result<Vec<&PathBuf>> {
+fn possible_duplicates(paths: Vec<&Path>) -> io::Result<Vec<&Path>> {
     let mut grps = group_by_size(paths)?;
     grps.retain(|_, v| v.len() > 1);
-    let mut res: Vec<&PathBuf> = Vec::new();
+    let mut res: Vec<&Path> = Vec::new();
     for (_, paths) in grps {
         for path in paths {
             res.push(path)
@@ -105,8 +105,8 @@ fn possible_duplicates(paths: Vec<&PathBuf>) -> io::Result<Vec<&PathBuf>> {
     Ok(res)
 }
 
-fn group_dups_by_xxh3(paths: Vec<&PathBuf>) -> io::Result<HashMap<Checksum, Vec<&PathBuf>>> {
-    let mut res: HashMap<Checksum, Vec<&PathBuf>> = HashMap::new();
+fn group_dups_by_xxh3(paths: Vec<&Path>) -> io::Result<HashMap<Checksum, Vec<&Path>>> {
+    let mut res: HashMap<Checksum, Vec<&Path>> = HashMap::new();
     for path in paths {
         let hash = Checksum::of_file(&path)?;
         match res.get_mut(&hash) {
@@ -122,10 +122,8 @@ fn group_dups_by_xxh3(paths: Vec<&PathBuf>) -> io::Result<HashMap<Checksum, Vec<
     Ok(res)
 }
 
-fn confirm_dups(
-    dups: HashMap<Checksum, Vec<&PathBuf>>,
-) -> io::Result<HashMap<Checksum, Vec<&PathBuf>>> {
-    let mut res: HashMap<Checksum, Vec<&PathBuf>> = HashMap::new();
+fn confirm_dups(dups: HashMap<Checksum, Vec<&Path>>) -> io::Result<HashMap<Checksum, Vec<&Path>>> {
+    let mut res: HashMap<Checksum, Vec<&Path>> = HashMap::new();
     for (hash, paths) in dups {
         let sha256hashes = paths
             .iter()
@@ -141,13 +139,14 @@ fn confirm_dups(
 
 fn group_duplicates<'a>(
     rootdir: &Path,
-    paths: &'a [PathBuf],
+    paths: &'a [&'a Path],
     quick: &bool,
-) -> io::Result<HashMap<Checksum, Vec<&'a PathBuf>>> {
+) -> io::Result<HashMap<Checksum, Vec<&'a Path>>> {
     let valid_paths = paths
         .iter()
         .filter(|p| is_path_valid(rootdir, p))
-        .collect::<Vec<&PathBuf>>();
+        .copied()
+        .collect::<Vec<&Path>>();
     let poss_dups = possible_duplicates(valid_paths)?;
     let dups = group_dups_by_xxh3(poss_dups)?;
     if !*quick {
@@ -163,13 +162,14 @@ pub fn scan(
     quick: &bool,
 ) -> io::Result<HashMap<Checksum, Vec<PathBuf>>> {
     let paths = traverse_bfs(rootdir, excludes)?;
-    let duplicates = group_duplicates(rootdir, &paths, quick)?
+    let path_list = paths.iter().map(|p| p.as_ref()).collect::<Vec<&Path>>();
+    let duplicates = group_duplicates(rootdir, &path_list, quick)?
         .into_iter()
-        // `group_duplicates` internally deals with PathBuf references
-        // and hence returns `Vec<&PathBuf>`. So here we need to
-        // create new PathBuf instances to be able to return them
-        // outside the function
-        .map(|(d, ps)| (d, ps.iter().map(|p| p.to_path_buf()).collect()))
+        // `group_duplicates` internally deals with Path references
+        // and hence returns `Vec<&Path>`. So here we need to create
+        // new PathBuf instances to be able to return them outside the
+        // function
+        .map(|(d, ps)| (d, ps.into_iter().map(|p| p.to_path_buf()).collect()))
         .collect::<HashMap<Checksum, Vec<PathBuf>>>();
     Ok(duplicates)
 }
