@@ -12,7 +12,7 @@ if [ -z $(git tag -l "$version") ]; then
 fi
 
 # Ensure that the tag is the same as that in Cargo.toml manifest file
-if [ ! grep -qE '^version = "$version\$' Cargo.toml ]; then
+if ! grep -qE "^version = \"$version\"$" Cargo.toml; then
     echo "Version mismatch" >&2
     exit 1
 fi
