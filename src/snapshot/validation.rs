@@ -61,8 +61,8 @@ fn validate_group(
     }
 }
 
-fn validate_checksum(path: &PathBuf, expected_hash: &Checksum) -> Result<(), Error> {
-    let computed_hash = Checksum::of_file(path).map_err(Error::Io)?;
+fn validate_checksum(path: &Path, expected_hash: &Checksum) -> Result<(), Error> {
+    let computed_hash = Checksum::of_file(&path).map_err(Error::Io)?;
     if computed_hash == *expected_hash {
         Ok(())
     } else {

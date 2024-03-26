@@ -5,7 +5,7 @@ use crate::hash::Checksum;
 use chrono::{DateTime, FixedOffset};
 use regex::Regex;
 use std::collections::HashMap;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 
 #[derive(Debug, Eq, PartialEq)]
 enum Line {
@@ -147,7 +147,7 @@ impl Line {
 
     // Constructor of sorts to create PathInfo variant from a
     // `FilePath` instance
-    fn pathinfo(filepath: &FilePath, rootdir: &PathBuf) -> Self {
+    fn pathinfo(filepath: &FilePath, rootdir: &Path) -> Self {
         // The `path` field in `Self::PathInfo` must be a relative
         // path, so we first compute that using the rootdir
         let path = normalize_path(&filepath.path, true, rootdir)
