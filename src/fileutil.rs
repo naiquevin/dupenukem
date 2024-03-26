@@ -303,11 +303,7 @@ mod tests {
         setup();
 
         let f = new_file("foo.txt", "dummy data");
-        let res = take_backup(
-            &f,
-            Path::new(TEST_BACKUP_DIR),
-            Path::new(TEST_FIXTURES_DIR),
-        );
+        let res = take_backup(&f, Path::new(TEST_BACKUP_DIR), Path::new(TEST_FIXTURES_DIR));
         match res {
             Ok(backup_path) => {
                 assert!(backup_path.is_file());
@@ -352,11 +348,7 @@ mod tests {
         let g = PathBuf::from(TEST_FIXTURES_DIR).join("foo_1_link.txt");
         std::os::unix::fs::symlink(&f, &g).expect("Couldn't create symlink");
         assert!(g.is_symlink(), "Symlink is created");
-        let res = take_backup(
-            &g,
-            Path::new(TEST_BACKUP_DIR),
-            Path::new(TEST_FIXTURES_DIR),
-        );
+        let res = take_backup(&g, Path::new(TEST_BACKUP_DIR), Path::new(TEST_FIXTURES_DIR));
         match res {
             Ok(backup_path) => {
                 assert!(backup_path.is_file());
