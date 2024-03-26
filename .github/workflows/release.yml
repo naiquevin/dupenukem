@@ -17,6 +17,10 @@ on:
           - "yes"
         required: true
 
+# Set permissions to be able to create releases
+permissions:
+  contents: write
+
 jobs:
   create-release:
     name: create-release
