@@ -37,7 +37,7 @@ distributing binaries. In the meanwhile, you can install it using
     cargo install --git https://github.com/naiquevin/dupenukem.git
 ```
 
-Or build from source again, using `cargo`.
+Or build from source, again using `cargo`.
 
 ``` shell
     git clone git@github.com:naiquevin/dupenukem.git
