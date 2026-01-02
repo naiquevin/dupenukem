@@ -15,7 +15,7 @@ pub fn xxh3_64<P: AsRef<Path>>(path: &P) -> io::Result<u64> {
 pub fn sha256<P: AsRef<Path>>(path: &P) -> io::Result<String> {
     let data = file_contents_as_bytes(path)?;
     let result = Sha256::digest(data);
-    Ok(format!("{:x}", result))
+    Ok(format!("{result:x}"))
 }
 
 /// Wrapper around xx3_64 hash

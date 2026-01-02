@@ -104,7 +104,7 @@ fn cmd_find(
     let output = textformat::render(&snap);
     if !output.is_empty() {
         for line in output.iter() {
-            println!("{}", line);
+            println!("{line}");
         }
     } else {
         eprintln!("No duplicates found under path: {}", rootdir.display());
@@ -141,7 +141,7 @@ fn cmd_validate(
             if num_pending == 0 {
                 println!("No pending actions");
             } else {
-                println!("No. of pending action(s): {}", num_pending);
+                println!("No. of pending action(s): {num_pending}");
             }
             Ok(())
         }
@@ -261,10 +261,10 @@ fn main() {
     match result {
         Ok(()) => process::exit(0),
         Err(AppError::Cmd(msg)) => {
-            eprintln!("Command Error: {}", msg);
+            eprintln!("Command Error: {msg}");
         }
         Err(e) => {
-            eprintln!("Error: {:?}", e);
+            eprintln!("Error: {e:?}");
             process::exit(1);
         }
     }

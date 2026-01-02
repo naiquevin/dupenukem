@@ -128,10 +128,10 @@ pub fn normalize_symlink_src_path(
 ///
 /// This function will return an error in the following situations:
 ///
-///   - `AppError::Fs` if `base_dir` is not found to be an ancestor
-///      of `path`.
+///   - `AppError::Fs` if `base_dir` is not found to be an ancestor of
+///     `path`.
 ///   - `AppError::Io` if there's an error writing to the backup
-///      directory.
+///     directory.
 ///
 fn take_backup(path: &Path, backup_dir: &Path, base_dir: &Path) -> Result<PathBuf, AppError> {
     // Find path relative to the rootdir

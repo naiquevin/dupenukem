@@ -9,6 +9,7 @@ use std::path::Path;
 
 #[derive(Debug)]
 pub enum Action<'a> {
+    #[allow(unused)]
     Keep(&'a Path),
     Symlink {
         path: &'a Path,
@@ -76,7 +77,7 @@ impl<'a> Action<'a> {
                     )
                     .as_str(),
                 );
-                eprintln!("{}", res)
+                eprintln!("{res}")
             }
             Self::Delete { path, is_no_op } => {
                 let mut res = String::from("");
@@ -87,7 +88,7 @@ impl<'a> Action<'a> {
                 // Use relative path in dry-run output
                 let rel_path = normalize_path(path, true, rootdir).unwrap();
                 res.push_str(format!(" File to be deleted: {}", rel_path.display()).as_str());
-                eprintln!("{}", res)
+                eprintln!("{res}")
             }
         }
     }

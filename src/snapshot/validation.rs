@@ -74,8 +74,8 @@ fn validate_checksum(path: &Path, expected_hash: &Checksum) -> Result<(), Error>
     } else {
         Err(Error::ChecksumMismatch {
             path: path.display().to_string(),
-            actual: format!("{}", computed_hash),
-            expected: format!("{}", expected_hash),
+            actual: computed_hash.to_string(),
+            expected: expected_hash.to_string(),
         })
     }
 }

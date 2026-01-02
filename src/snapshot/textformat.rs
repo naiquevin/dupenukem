@@ -27,9 +27,9 @@ enum Line {
 impl Line {
     fn encode(&self) -> String {
         match self {
-            Self::Comment(comment) => format!("# {}", comment),
-            Self::MetaData { key, val } => format!("#! {}: {}", key, val),
-            Self::Checksum(hash) => format!("[{}]", hash),
+            Self::Comment(comment) => format!("# {comment}"),
+            Self::MetaData { key, val } => format!("#! {key}: {val}"),
+            Self::Checksum(hash) => format!("[{hash}]"),
             Self::PathInfo {
                 path,
                 op,
@@ -41,7 +41,7 @@ impl Line {
                     // delim is None. At this point it's not clear
                     // whether that would be a good idea.
                     Some(x) => format!("{} {} {} {}", op, path, delim.as_ref().unwrap(), x),
-                    None => format!("{} {}", op, path),
+                    None => format!("{op} {path}"),
                 }
             }
             Self::Blank => String::from(""),
@@ -226,7 +226,7 @@ fn render_lines(snap: &Snapshot) -> Vec<Line> {
     lines.push(Line::Blank);
 
     for (ck, vs) in sorted_groups(&snap.duplicates) {
-        lines.push(Line::Checksum(format!("{}", ck)));
+        lines.push(Line::Checksum(ck.to_string()));
         for v in vs {
             lines.push(Line::pathinfo(v, &snap.rootdir));
         }
