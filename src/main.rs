@@ -260,11 +260,8 @@ fn main() {
     let result = cli.execute();
     match result {
         Ok(()) => process::exit(0),
-        Err(AppError::Cmd(msg)) => {
-            eprintln!("Command Error: {msg}");
-        }
         Err(e) => {
-            eprintln!("Error: {e:?}");
+            eprintln!("{e}");
             process::exit(1);
         }
     }
