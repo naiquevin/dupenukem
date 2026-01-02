@@ -17,6 +17,7 @@ pathdiff = "0.2.1"
 regex = "1.10.2"
 sha2 = "0.10.8"
 size = "0.4.1"
+thiserror = "2.0.17"
 xxhash-rust = { version = "0.8.8", features = ["xxh3"] }
 
 [dev-dependencies]

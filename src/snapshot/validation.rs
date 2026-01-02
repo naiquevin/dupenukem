@@ -6,17 +6,23 @@ use log::warn;
 use std::io;
 use std::path::{Path, PathBuf};
 
-#[derive(Debug)]
+#[derive(Debug, thiserror::Error)]
 pub enum Error {
+    #[error("{0}")]
     RootDir(String),
+    #[error("{0}")]
     OpNotPossible(String),
+    #[error("Operation not allowed: {0}")]
     OpNotAllowed(String),
+    #[error("Corrupt snapshot: {0}")]
     CorruptSnapshot(String),
+    #[error("Corrupt snapshot for {path}")]
     ChecksumMismatch {
         path: String,
         actual: String,
         expected: String,
     },
+    #[error("IO error {0}")]
     Io(io::Error),
 }
 
